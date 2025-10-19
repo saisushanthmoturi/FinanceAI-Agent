@@ -40,7 +40,6 @@ import {
   ListItemText,
   Switch,
   FormControlLabel,
-  Snackbar,
 } from '@mui/material';
 import Grid from '@mui/material/Grid2';
 import {
@@ -62,22 +61,14 @@ import {
   type TaxOptimizationReport,
 } from '../services/taxOptimizationService';
 import { getUserProfile, type UserProfile } from '../services/authService';
-import { 
-  generateAITaxRecommendations, 
-  type TaxAdvisorReport 
-} from '../services/aiTaxAdvisor';
 
 const TaxOptimization: React.FC = () => {
   const { user } = useAppStore();
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [taxReport, setTaxReport] = useState<TaxOptimizationReport | null>(null);
-  const [aiReport, setAiReport] = useState<TaxAdvisorReport | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [compareDialogOpen, setCompareDialogOpen] = useState(false);
-  const [loadingAI, setLoadingAI] = useState(false);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState('');
   
   // Form state
   const [formData, setFormData] = useState({
@@ -99,21 +90,15 @@ const TaxOptimization: React.FC = () => {
   }, [user]);
 
   const loadUserData = async () => {
-    if (!user) {
-      console.log('No user found, skipping loadUserData');
-      return;
-    }
+    if (!user) return;
 
     try {
       setLoading(true);
-      console.log('Loading user profile for user:', user.id);
       const profile = await getUserProfile(user.id);
-      console.log('User profile loaded:', profile);
       setUserProfile(profile);
 
       // Load form data from profile
       if (profile.financialInfo) {
-        console.log('Financial info found:', profile.financialInfo);
         setFormData({
           annualSalary: profile.financialInfo.annualSalary?.toString() || '',
           taxRegime: profile.financialInfo.taxRegime || 'new',
@@ -128,25 +113,9 @@ const TaxOptimization: React.FC = () => {
 
         // Generate tax report if salary exists
         if (profile.financialInfo.annualSalary) {
-          console.log('Generating tax optimization report...');
           const report = await generateTaxOptimizationReport(user.id);
-          console.log('Tax report generated:', report);
           setTaxReport(report);
-          
-          // Also generate AI recommendations
-          try {
-            console.log('Generating AI recommendations...');
-            const aiRecs = await generateAITaxRecommendations(user.id);
-            console.log('AI recommendations generated:', aiRecs);
-            setAiReport(aiRecs);
-          } catch (error) {
-            console.error('Error generating AI recommendations:', error);
-          }
-        } else {
-          console.log('No salary found, skipping report generation');
         }
-      } else {
-        console.log('No financial info found in profile');
       }
     } catch (error) {
       console.error('Error loading user data:', error);
@@ -158,15 +127,7 @@ const TaxOptimization: React.FC = () => {
   const handleSaveFinancialInfo = async () => {
     if (!user) return;
 
-    // Validate required fields
-    if (!formData.annualSalary || parseFloat(formData.annualSalary) <= 0) {
-      alert('Please enter a valid annual salary');
-      return;
-    }
-
     try {
-      setLoading(true);
-      
       const financialInfo = {
         annualSalary: parseFloat(formData.annualSalary) || 0,
         taxRegime: formData.taxRegime,
@@ -179,40 +140,12 @@ const TaxOptimization: React.FC = () => {
         pan: formData.pan,
       };
 
-      console.log('Saving financial info:', financialInfo);
       await updateFinancialInfo(user.id, financialInfo);
-      
-      // Close dialog
       setEditDialogOpen(false);
-      
-      // Reload user data and generate reports
-      console.log('Reloading user data after save...');
       await loadUserData();
-      
-      console.log('Financial information saved and reports generated successfully');
-      setSnackbarMessage('Financial information saved and tax report generated successfully!');
-      setSnackbarOpen(true);
     } catch (error) {
       console.error('Error saving financial info:', error);
-      setSnackbarMessage(`Failed to save: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      setSnackbarOpen(true);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGenerateAIRecommendations = async () => {
-    if (!user) return;
-
-    try {
-      setLoadingAI(true);
-      const aiRecs = await generateAITaxRecommendations(user.id);
-      setAiReport(aiRecs);
-    } catch (error) {
-      console.error('Error generating AI recommendations:', error);
-      alert('Failed to generate AI recommendations. Please ensure you have added your salary information.');
-    } finally {
-      setLoadingAI(false);
+      alert('Failed to save financial information');
     }
   };
 
@@ -269,14 +202,6 @@ const TaxOptimization: React.FC = () => {
           </Typography>
         </Box>
         <Box display="flex" gap={2}>
-          <Button
-            variant="outlined"
-            startIcon={loadingAI ? <CircularProgress size={20} /> : <CompareArrows />}
-            onClick={handleGenerateAIRecommendations}
-            disabled={!taxReport || loadingAI}
-          >
-            {loadingAI ? 'Generating...' : 'AI Insights'}
-          </Button>
           <Button
             variant="outlined"
             startIcon={<CompareArrows />}
@@ -537,136 +462,6 @@ const TaxOptimization: React.FC = () => {
             ))}
           </Paper>
 
-          {/* AI-Powered Recommendations */}
-          {aiReport && (
-            <Paper elevation={3} sx={{ p: 3, mb: 3, background: 'linear-gradient(135deg, #667eea22 0%, #764ba222 100%)' }}>
-              <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                <Box>
-                  <Typography variant="h6" fontWeight="bold" gutterBottom>
-                    🤖 AI-Powered Tax Recommendations
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Personalized insights based on your financial profile and investment portfolio
-                  </Typography>
-                </Box>
-                <Box textAlign="right">
-                  <Typography variant="h3" fontWeight="bold" color="primary">
-                    {aiReport.financialHealthScore}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Financial Health Score
-                  </Typography>
-                </Box>
-              </Box>
-
-              {/* Urgent Actions */}
-              {aiReport.urgentActions.length > 0 && (
-                <Alert severity="warning" sx={{ mb: 2 }}>
-                  <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-                    ⚠️ Urgent Actions Required
-                  </Typography>
-                  <List dense>
-                    {aiReport.urgentActions.map((action, index) => (
-                      <ListItem key={index} disablePadding>
-                        <ListItemText primary={action} />
-                      </ListItem>
-                    ))}
-                  </List>
-                </Alert>
-              )}
-
-              {/* AI Recommendations */}
-              <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ mt: 2 }}>
-                💡 Smart Recommendations (Potential Savings: ₹{(aiReport.potentialSavings / 1000).toFixed(0)}K)
-              </Typography>
-
-              {aiReport.recommendations.map((rec) => (
-                <Accordion key={rec.id} sx={{ mb: 1 }}>
-                  <AccordionSummary expandIcon={<ExpandMore />}>
-                    <Box display="flex" alignItems="center" width="100%">
-                      <Box sx={{ flexGrow: 1 }}>
-                        <Typography variant="subtitle1" fontWeight="bold">
-                          {rec.title}
-                        </Typography>
-                        <Box display="flex" gap={1} mt={0.5}>
-                          <Chip 
-                            label={rec.priority.toUpperCase()} 
-                            size="small" 
-                            color={rec.priority === 'high' ? 'error' : rec.priority === 'medium' ? 'warning' : 'info'}
-                          />
-                          <Chip 
-                            label={`Save: ₹${(rec.potentialSaving / 1000).toFixed(0)}K`} 
-                            size="small" 
-                            color="success" 
-                          />
-                          <Chip 
-                            label={rec.impact} 
-                            size="small" 
-                            variant="outlined"
-                          />
-                        </Box>
-                      </Box>
-                    </Box>
-                  </AccordionSummary>
-                  <AccordionDetails>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                      {rec.description}
-                    </Typography>
-
-                    <Alert severity="info" sx={{ mt: 2, mb: 2 }}>
-                      <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-                        💭 AI Reasoning:
-                      </Typography>
-                      <Typography variant="body2">
-                        {rec.reasoning}
-                      </Typography>
-                    </Alert>
-
-                    <Typography variant="subtitle2" fontWeight="bold" sx={{ mt: 2, mb: 1 }}>
-                      📝 Action Steps:
-                    </Typography>
-                    <List dense>
-                      {rec.actionSteps.map((step, index) => (
-                        <ListItem key={index}>
-                          <ListItemIcon>
-                            <CheckCircle color="primary" fontSize="small" />
-                          </ListItemIcon>
-                          <ListItemText primary={step} />
-                        </ListItem>
-                      ))}
-                    </List>
-
-                    {rec.deadline && (
-                      <Chip 
-                        label={`Deadline: ${rec.deadline}`} 
-                        size="small" 
-                        color="warning"
-                        sx={{ mt: 1 }}
-                      />
-                    )}
-                  </AccordionDetails>
-                </Accordion>
-              ))}
-
-              {/* Long-term Strategy */}
-              <Box sx={{ mt: 3, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
-                <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-                  🎯 Long-term Tax Strategy
-                </Typography>
-                <List dense>
-                  {aiReport.longTermStrategy.map((strategy, index) => (
-                    <ListItem key={index}>
-                      <ListItemIcon>
-                        <CheckCircle color="success" fontSize="small" />
-                      </ListItemIcon>
-                      <ListItemText primary={strategy} />
-                    </ListItem>
-                  ))}
-                </List>
-              </Box>
-            </Paper>
-          )}
-
           {/* Action Plan */}
           <Paper elevation={3} sx={{ p: 3, bgcolor: 'primary.50' }}>
             <Typography variant="h6" fontWeight="bold" gutterBottom color="primary">
@@ -854,15 +649,6 @@ const TaxOptimization: React.FC = () => {
           <Button onClick={() => setCompareDialogOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
-
-      {/* Success/Error Snackbar */}
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={6000}
-        onClose={() => setSnackbarOpen(false)}
-        message={snackbarMessage}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      />
     </Container>
   );
 };

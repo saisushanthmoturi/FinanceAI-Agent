@@ -9,7 +9,6 @@ import {
   Chip,
   Button,
   IconButton,
-  Tooltip,
   Alert,
   Dialog,
   DialogTitle,
@@ -20,6 +19,8 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  CircularProgress,
+  Snackbar,
 } from '@mui/material';
 import Grid from '@mui/material/Grid2';
 import {
@@ -31,15 +32,12 @@ import {
   PieChart as PieChartIcon,
   Timeline,
   AccountBalance,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
 import {
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -50,17 +48,13 @@ import {
   AreaChart,
 } from 'recharts';
 import { useAppStore } from '../store/useAppStore';
-
-interface Investment {
-  id: string;
-  name: string;
-  type: 'stocks' | 'mutual_funds' | 'bonds' | 'gold' | 'crypto' | 'real_estate';
-  amount: number;
-  currentValue: number;
-  returns: number;
-  returnsPercentage: number;
-  allocation: number;
-}
+import type { Investment, AssetType } from '../services/portfolioService';
+import {
+  addInvestment,
+  getUserInvestments,
+  deleteInvestment,
+  calculatePortfolioSummary,
+} from '../services/portfolioService';
 
 interface PortfolioPerformance {
   month: string;
@@ -77,87 +71,121 @@ const InvestmentPortfolio: React.FC = () => {
   const [totalInvested, setTotalInvested] = useState(0);
   const [totalReturns, setTotalReturns] = useState(0);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+
+  // Form state
+  const [formData, setFormData] = useState({
+    name: '',
+    type: 'stocks' as AssetType,
+    quantity: '',
+    buyPrice: '',
+    purchaseDate: new Date().toISOString().split('T')[0],
+    notes: '',
+  });
 
   useEffect(() => {
-    loadPortfolioData();
-  }, []);
+    if (user) {
+      loadPortfolioData();
+    }
+  }, [user]);
 
-  const loadPortfolioData = () => {
-    // Mock investment data
-    const mockInvestments: Investment[] = [
-      {
-        id: '1',
-        name: 'HDFC Top 100 Fund',
-        type: 'mutual_funds',
-        amount: 200000,
-        currentValue: 245000,
-        returns: 45000,
-        returnsPercentage: 22.5,
-        allocation: 30,
-      },
-      {
-        id: '2',
-        name: 'Reliance Industries',
+  const loadPortfolioData = async () => {
+    try {
+      setLoading(true);
+      if (!user) return;
+
+      const userInvestments = await getUserInvestments(user.id);
+      setInvestments(userInvestments);
+
+      const summary = calculatePortfolioSummary(userInvestments);
+      setTotalValue(summary.totalCurrentValue);
+      setTotalInvested(summary.totalInvested);
+      setTotalReturns(summary.totalReturns);
+
+      // Mock performance data for now
+      const mockPerformance: PortfolioPerformance[] = [
+        { month: 'Apr', value: summary.totalCurrentValue * 0.8, invested: summary.totalInvested, returns: summary.totalReturns * 0.8 },
+        { month: 'May', value: summary.totalCurrentValue * 0.85, invested: summary.totalInvested, returns: summary.totalReturns * 0.85 },
+        { month: 'Jun', value: summary.totalCurrentValue * 0.90, invested: summary.totalInvested, returns: summary.totalReturns * 0.90 },
+        { month: 'Jul', value: summary.totalCurrentValue * 0.93, invested: summary.totalInvested, returns: summary.totalReturns * 0.93 },
+        { month: 'Aug', value: summary.totalCurrentValue * 0.96, invested: summary.totalInvested, returns: summary.totalReturns * 0.96 },
+        { month: 'Sep', value: summary.totalCurrentValue * 0.98, invested: summary.totalInvested, returns: summary.totalReturns * 0.98 },
+        { month: 'Oct', value: summary.totalCurrentValue, invested: summary.totalInvested, returns: summary.totalReturns },
+      ];
+      setPerformance(mockPerformance);
+
+      console.log(`✅ Loaded ${userInvestments.length} investments`);
+    } catch (error) {
+      console.error('Error loading portfolio:', error);
+      showSnackbar('Failed to load portfolio');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddInvestment = async () => {
+    try {
+      if (!user) return;
+
+      const quantity = parseFloat(formData.quantity);
+      const buyPrice = parseFloat(formData.buyPrice);
+
+      if (!formData.name || !quantity || !buyPrice) {
+        showSnackbar('Please fill all required fields');
+        return;
+      }
+
+      const amount = quantity * buyPrice;
+
+      await addInvestment(user.id, {
+        name: formData.name,
+        type: formData.type,
+        quantity,
+        buyPrice,
+        amount,
+        purchaseDate: new Date(formData.purchaseDate),
+        notes: formData.notes,
+      });
+
+      showSnackbar(`Added ${formData.name} to portfolio`);
+      setAddDialogOpen(false);
+      
+      // Reset form
+      setFormData({
+        name: '',
         type: 'stocks',
-        amount: 150000,
-        currentValue: 182000,
-        returns: 32000,
-        returnsPercentage: 21.3,
-        allocation: 22,
-      },
-      {
-        id: '3',
-        name: 'SBI Bluechip Fund',
-        type: 'mutual_funds',
-        amount: 180000,
-        currentValue: 205000,
-        returns: 25000,
-        returnsPercentage: 13.9,
-        allocation: 25,
-      },
-      {
-        id: '4',
-        name: 'Government Bonds',
-        type: 'bonds',
-        amount: 100000,
-        currentValue: 107500,
-        returns: 7500,
-        returnsPercentage: 7.5,
-        allocation: 13,
-      },
-      {
-        id: '5',
-        name: 'Gold ETF',
-        type: 'gold',
-        amount: 80000,
-        currentValue: 86000,
-        returns: 6000,
-        returnsPercentage: 7.5,
-        allocation: 10,
-      },
-    ];
+        quantity: '',
+        buyPrice: '',
+        purchaseDate: new Date().toISOString().split('T')[0],
+        notes: '',
+      });
 
-    // Mock performance data
-    const mockPerformance: PortfolioPerformance[] = [
-      { month: 'Apr', value: 680000, invested: 710000, returns: -30000 },
-      { month: 'May', value: 705000, invested: 710000, returns: -5000 },
-      { month: 'Jun', value: 735000, invested: 710000, returns: 25000 },
-      { month: 'Jul', value: 760000, invested: 710000, returns: 50000 },
-      { month: 'Aug', value: 790000, invested: 710000, returns: 80000 },
-      { month: 'Sep', value: 805000, invested: 710000, returns: 95000 },
-      { month: 'Oct', value: 825500, invested: 710000, returns: 115500 },
-    ];
+      // Reload data
+      await loadPortfolioData();
+    } catch (error) {
+      console.error('Error adding investment:', error);
+      showSnackbar('Failed to add investment');
+    }
+  };
 
-    setInvestments(mockInvestments);
-    setPerformance(mockPerformance);
+  const handleDeleteInvestment = async (investmentId: string) => {
+    try {
+      if (!user) return;
 
-    const total = mockInvestments.reduce((sum, inv) => sum + inv.currentValue, 0);
-    const invested = mockInvestments.reduce((sum, inv) => sum + inv.amount, 0);
-    const returns = total - invested;
+      await deleteInvestment(user.id, investmentId);
+      showSnackbar('Investment removed');
+      await loadPortfolioData();
+    } catch (error) {
+      console.error('Error deleting investment:', error);
+      showSnackbar('Failed to remove investment');
+    }
+  };
 
-    setTotalValue(total);
-    setTotalInvested(invested);
-    setTotalReturns(returns);
+  const showSnackbar = (message: string) => {
+    setSnackbarMessage(message);
+    setSnackbarOpen(true);
   };
 
   const getInvestmentIcon = (type: string) => {
@@ -215,8 +243,15 @@ const InvestmentPortfolio: React.FC = () => {
         </Button>
       </Box>
 
-      {/* Summary Cards */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
+      {/* Loading State */}
+      {loading ? (
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight={400}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <>
+          {/* Summary Cards */}
+          <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Card
             elevation={3}
@@ -357,7 +392,7 @@ const InvestmentPortfolio: React.FC = () => {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, value }: any) => `${value}%`}
+                  label={({ value }: any) => `${value}%`}
                   outerRadius={100}
                   fill="#8884d8"
                   dataKey="value"
@@ -432,12 +467,21 @@ const InvestmentPortfolio: React.FC = () => {
                         </Typography>
                       </Box>
                     </Box>
-                    <Chip
-                      label={`${investment.returnsPercentage > 0 ? '+' : ''}${investment.returnsPercentage.toFixed(1)}%`}
-                      color={investment.returnsPercentage > 0 ? 'success' : 'error'}
-                      size="small"
-                      icon={investment.returnsPercentage > 0 ? <TrendingUp /> : <TrendingDown />}
-                    />
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <Chip
+                        label={`${(investment.returnsPercentage ?? 0) > 0 ? '+' : ''}${(investment.returnsPercentage ?? 0).toFixed(1)}%`}
+                        color={(investment.returnsPercentage ?? 0) > 0 ? 'success' : 'error'}
+                        size="small"
+                        icon={(investment.returnsPercentage ?? 0) > 0 ? <TrendingUp /> : <TrendingDown />}
+                      />
+                      <IconButton
+                        size="small"
+                        onClick={() => handleDeleteInvestment(investment.id)}
+                        color="error"
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
                   </Box>
 
                   <Grid container spacing={2}>
@@ -454,7 +498,7 @@ const InvestmentPortfolio: React.FC = () => {
                         Current
                       </Typography>
                       <Typography variant="body2" fontWeight="bold">
-                        ₹{(investment.currentValue / 1000).toFixed(0)}K
+                        ₹{((investment.currentValue ?? investment.amount) / 1000).toFixed(0)}K
                       </Typography>
                     </Grid>
                     <Grid size={{ xs: 4 }}>
@@ -464,9 +508,9 @@ const InvestmentPortfolio: React.FC = () => {
                       <Typography
                         variant="body2"
                         fontWeight="bold"
-                        color={investment.returns > 0 ? 'success.main' : 'error.main'}
+                        color={(investment.returns ?? 0) > 0 ? 'success.main' : 'error.main'}
                       >
-                        ₹{(investment.returns / 1000).toFixed(0)}K
+                        ₹{((investment.returns ?? 0) / 1000).toFixed(0)}K
                       </Typography>
                     </Grid>
                   </Grid>
@@ -489,6 +533,8 @@ const InvestmentPortfolio: React.FC = () => {
           <li>Expected annual return: 12-15% based on historical performance</li>
         </ul>
       </Alert>
+        </>
+      )}
 
       {/* Add Investment Dialog */}
       <Dialog open={addDialogOpen} onClose={() => setAddDialogOpen(false)} maxWidth="sm" fullWidth>
@@ -498,11 +544,17 @@ const InvestmentPortfolio: React.FC = () => {
             fullWidth
             label="Investment Name"
             variant="outlined"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             sx={{ mt: 2, mb: 2 }}
           />
           <FormControl fullWidth sx={{ mb: 2 }}>
             <InputLabel>Type</InputLabel>
-            <Select label="Type" defaultValue="stocks">
+            <Select
+              label="Type"
+              value={formData.type}
+              onChange={(e) => setFormData({ ...formData, type: e.target.value as AssetType })}
+            >
               <MenuItem value="stocks">Stocks</MenuItem>
               <MenuItem value="mutual_funds">Mutual Funds</MenuItem>
               <MenuItem value="bonds">Bonds</MenuItem>
@@ -513,25 +565,57 @@ const InvestmentPortfolio: React.FC = () => {
           </FormControl>
           <TextField
             fullWidth
-            label="Amount Invested (₹)"
+            label="Quantity"
             type="number"
             variant="outlined"
+            value={formData.quantity}
+            onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
             sx={{ mb: 2 }}
           />
           <TextField
             fullWidth
-            label="Current Value (₹)"
+            label="Buy Price (₹)"
             type="number"
             variant="outlined"
+            value={formData.buyPrice}
+            onChange={(e) => setFormData({ ...formData, buyPrice: e.target.value })}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            fullWidth
+            label="Purchase Date"
+            type="date"
+            variant="outlined"
+            value={formData.purchaseDate}
+            onChange={(e) => setFormData({ ...formData, purchaseDate: e.target.value })}
+            sx={{ mb: 2 }}
+            InputLabelProps={{ shrink: true }}
+          />
+          <TextField
+            fullWidth
+            label="Notes (Optional)"
+            variant="outlined"
+            multiline
+            rows={2}
+            value={formData.notes}
+            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
           />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setAddDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={() => setAddDialogOpen(false)}>
+          <Button variant="contained" onClick={handleAddInvestment}>
             Add Investment
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={() => setSnackbarOpen(false)}
+        message={snackbarMessage}
+      />
     </Container>
   );
 };

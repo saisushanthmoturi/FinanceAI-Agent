@@ -39,6 +39,7 @@ import {
 } from '@mui/icons-material';
 import { useAppStore } from '../store/useAppStore';
 import type { UserBankAccount } from '../types/bank';
+import ActivityLogViewer from './ActivityLogViewer';
 
 const Profile: React.FC = () => {
   const { user, language } = useAppStore();
@@ -408,6 +409,11 @@ const Profile: React.FC = () => {
               </Grid>
             </CardContent>
           </Card>
+        </Grid>
+
+        {/* Activity Log Section */}
+        <Grid item xs={12}>
+          <ActivityLogViewer />
         </Grid>
       </Grid>
 

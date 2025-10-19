@@ -24,6 +24,8 @@ import {
   Refresh,
   Receipt,
   Security,
+  TipsAndUpdates,
+  Assessment,
 } from '@mui/icons-material';
 import { useAppStore } from '../store/useAppStore';
 import { accountAggregatorService } from '../services/accountAggregator';
@@ -303,7 +305,56 @@ const Dashboard: React.FC = () => {
             <Typography variant="h6" fontWeight="bold" gutterBottom>
               AI-Powered Features
             </Typography>
+            {/* Featured AI Advisor Card */}
+            <Card 
+              elevation={2} 
+              sx={{ 
+                mb: 2, 
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                cursor: 'pointer',
+                transition: 'transform 0.2s',
+                '&:hover': { transform: 'scale(1.02)' }
+              }}
+              onClick={() => navigate('/ai-financial-advisor')}
+            >
+              <CardContent>
+                <Box display="flex" alignItems="center" gap={2}>
+                  <TipsAndUpdates sx={{ fontSize: 48 }} />
+                  <Box flexGrow={1}>
+                    <Typography variant="h6" fontWeight="bold">
+                      🤖 AI Financial Advisor
+                    </Typography>
+                    <Typography variant="body2" sx={{ opacity: 0.9, mt: 0.5 }}>
+                      Get personalized goal-based financial plans
+                    </Typography>
+                  </Box>
+                  <Button
+                    variant="contained"
+                    sx={{ 
+                      bgcolor: 'white', 
+                      color: 'primary.main',
+                      '&:hover': { bgcolor: 'grey.100' }
+                    }}
+                  >
+                    Start Planning
+                  </Button>
+                </Box>
+              </CardContent>
+            </Card>
+
             <Grid container spacing={2} sx={{ mt: 1 }}>
+              <Grid size={{ xs: 6 }}>
+                <Button
+                  variant="outlined"
+                  fullWidth
+                  startIcon={<Receipt />}
+                  sx={{ py: 2 }}
+                  onClick={() => navigate('/tax-optimization')}
+                >
+                  Tax Optimization
+                </Button>
+              </Grid>
               <Grid size={{ xs: 6 }}>
                 <Button
                   variant="outlined"
@@ -371,6 +422,46 @@ const Dashboard: React.FC = () => {
         {/* Recent Transactions */}
         <Grid size={{ xs: 12, md: 6 }}>
           <RecentTransactions transactions={dashboardData.recentTransactions} />
+        </Grid>
+
+        {/* Financial Report - NEW FEATURE! */}
+        <Grid size={{ xs: 12, md: 8 }}>
+          <Card 
+            elevation={6}
+            sx={{ 
+              mb: 2, 
+              background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+              color: 'white',
+              cursor: 'pointer',
+              transition: 'transform 0.2s',
+              '&:hover': { transform: 'scale(1.02)' }
+            }}
+            onClick={() => navigate('/financial-report')}
+          >
+            <CardContent>
+              <Box display="flex" alignItems="center" gap={2}>
+                <Assessment sx={{ fontSize: 48 }} />
+                <Box flexGrow={1}>
+                  <Typography variant="h6" fontWeight="bold">
+                    📊 My Complete Financial Report
+                  </Typography>
+                  <Typography variant="body2" sx={{ opacity: 0.9, mt: 0.5 }}>
+                    Portfolio + Tax + Goals + AI Chatbot + Voice Assistant + Smart Automation
+                  </Typography>
+                </Box>
+                <Button
+                  variant="contained"
+                  sx={{ 
+                    bgcolor: 'white', 
+                    color: 'warning.main',
+                    '&:hover': { bgcolor: 'grey.100' }
+                  }}
+                >
+                  View Report
+                </Button>
+              </Box>
+            </CardContent>
+          </Card>
         </Grid>
       </Grid>
     </Container>

@@ -1,0 +1,188 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user owns the resource
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Helper function to check if document belongs to user
+    function belongsToUser() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+    
+    // ==================== USERS COLLECTION ====================
+    match /users/{userId} {
+      // Users can read and write their own profile
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId);
+    }
+    
+    // ==================== PORTFOLIOS COLLECTION ====================
+    match /portfolios/{userId} {
+      // Users can read and write their own portfolio
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
+      
+      // Sub-collection: investments
+      match /investments/{investmentId} {
+        allow read: if isOwner(userId);
+        allow write: if isOwner(userId);
+      }
+    }
+    
+    // ==================== TAX HISTORY COLLECTION ====================
+    match /taxHistory/{docId} {
+      // Users can only read/write their own tax records
+      allow read: if belongsToUser();
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+      allow update: if belongsToUser();
+      allow delete: if belongsToUser();
+    }
+    
+    // ==================== FUTURE PLANS COLLECTION ====================
+    match /futurePlans/{docId} {
+      // Users can only read/write their own future plans
+      allow read: if belongsToUser();
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+      allow update: if belongsToUser();
+      allow delete: if belongsToUser();
+    }
+    
+    // ==================== ACTIVE AGENTS COLLECTION ====================
+    match /activeAgents/{docId} {
+      // Users can only read/write their own agents
+      allow read: if belongsToUser();
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+      allow update: if belongsToUser();
+      allow delete: if belongsToUser();
+    }
+    
+    // ==================== BANK ACCOUNTS COLLECTION ====================
+    match /bankAccounts/{docId} {
+      // Users can only access their own bank accounts
+      allow read: if belongsToUser();
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+      allow update: if belongsToUser();
+      allow delete: if belongsToUser();
+    }
+    
+    // ==================== TRANSACTIONS COLLECTION ====================
+    match /transactions/{docId} {
+      // Users can only access their own transactions
+      allow read: if belongsToUser();
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+      allow update: if belongsToUser();
+      allow delete: if belongsToUser();
+    }
+    
+    // ==================== CREDIT SCORES COLLECTION ====================
+    match /creditScores/{userId} {
+      // Users can only access their own credit scores
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId);
+    }
+    
+    // ==================== FINANCIAL GOALS COLLECTION ====================
+    match /financialGoals/{docId} {
+      // Users can only access their own goals
+      allow read: if belongsToUser();
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+      allow update: if belongsToUser();
+      allow delete: if belongsToUser();
+    }
+    
+    // ==================== WATCHLIST COLLECTION ====================
+    match /watchlists/{userId} {
+      // Users can read and write their own watchlist
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId);
+      
+      // Sub-collection: items
+      match /items/{itemId} {
+        allow read: if isOwner(userId);
+        allow write: if isOwner(userId);
+      }
+    }
+    
+    // ==================== AGENT EXECUTIONS COLLECTION ====================
+    match /agentExecutions/{docId} {
+      // Users can only read their own agent executions
+      allow read: if belongsToUser();
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+      allow update: if belongsToUser();
+    }
+    
+    // ==================== ACTIVITY LOGS COLLECTION ====================
+    match /activityLogs/{userId} {
+      // Users can read their own activity logs
+      allow read: if isOwner(userId);
+      // Only backend can write logs
+      allow write: if false;
+      
+      // Sub-collection: logs
+      match /logs/{logId} {
+        allow read: if isOwner(userId);
+        allow write: if false; // Only backend
+      }
+    }
+    
+    // ==================== NOTIFICATIONS COLLECTION ====================
+    match /notifications/{docId} {
+      // Users can read and update their own notifications
+      allow read: if belongsToUser();
+      allow update: if belongsToUser();
+      allow delete: if belongsToUser();
+      // Create only by backend
+      allow create: if false;
+    }
+    
+    // ==================== CONSENT RECORDS COLLECTION ====================
+    match /consentRecords/{docId} {
+      // Users can read and create their own consent records
+      allow read: if belongsToUser();
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+      // Cannot update or delete consent records (audit trail)
+      allow update: if false;
+      allow delete: if false;
+    }
+    
+    // ==================== AI RECOMMENDATIONS COLLECTION ====================
+    match /aiRecommendations/{docId} {
+      // Users can read recommendations meant for them
+      allow read: if belongsToUser();
+      // Only backend can create/update recommendations
+      allow write: if false;
+    }
+    
+    // ==================== MARKET DATA COLLECTION (PUBLIC) ====================
+    match /marketData/{symbol} {
+      // All authenticated users can read market data
+      allow read: if isAuthenticated();
+      // Only backend can write market data
+      allow write: if false;
+    }
+    
+    // ==================== CRYPTO PRICES COLLECTION (PUBLIC) ====================
+    match /cryptoPrices/{symbol} {
+      // All authenticated users can read crypto prices
+      allow read: if isAuthenticated();
+      // Only backend can write crypto prices
+      allow write: if false;
+    }
+    
+    // ==================== FALLBACK: DENY ALL ====================
+    // Deny access to any collection not explicitly defined
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

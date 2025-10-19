@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   ThemeProvider,
   createTheme,
@@ -25,8 +25,9 @@ import {
 } from '@mui/icons-material';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
 import { useAppStore } from './store/useAppStore';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './config/firebase';
+import { logoutUser, ensureUserProfile } from './services/authService';
 import Dashboard from './components/Dashboard';
 import ChatBot from './components/ChatBot';
 import ScenarioSimulator from './components/ScenarioSimulator';
@@ -38,10 +39,14 @@ import FinancialInclusion from './components/FinancialInclusion';
 import ExplainableAI from './components/ExplainableAI';
 import UnifiedDataView from './components/UnifiedDataView';
 import TaxOptimization from './components/TaxOptimization';
+import AIFinancialAdvisor from './components/AIFinancialAdvisor';
 import CreditScoreMonitor from './components/CreditScoreMonitor';
 import RiskAutoSellAgentSetup from './components/RiskAutoSellAgentSetup';
 import DynamicAgentsHub from './components/DynamicAgentsHub';
-import Profile from './components/Profile';
+import StockMonitoringDashboard from './components/StockMonitoringDashboard';
+import RiskMonitoringDashboard from './components/RiskMonitoringDashboard';
+import EnhancedProfile from './components/EnhancedProfile';
+import FinancialReport from './components/FinancialReport';
 import Login from './components/Login';
 import './App.css';
 
@@ -51,6 +56,7 @@ function AppLayout() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [langAnchorEl, setLangAnchorEl] = useState<null | HTMLElement>(null);
   const location = useLocation();
+  const navigate = useNavigate();
 
   const theme = createTheme({
     palette: {
@@ -296,17 +302,34 @@ function AppLayout() {
   });
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        setUser({
-          id: firebaseUser.uid,
-          email: firebaseUser.email || '',
-          displayName: firebaseUser.displayName || 'User',
-          preferredLanguage: language,
-          createdAt: new Date(),
-          lastLoginAt: new Date(),
-          consentGiven: [],
-        });
+        try {
+          // Ensure user profile exists in Firestore (creates if missing)
+          const userProfile = await ensureUserProfile(firebaseUser);
+          
+          setUser({
+            id: userProfile.uid,
+            email: userProfile.email,
+            displayName: userProfile.displayName || 'User',
+            preferredLanguage: language,
+            createdAt: userProfile.createdAt,
+            lastLoginAt: userProfile.lastLoginAt,
+            consentGiven: [],
+          });
+        } catch (error) {
+          console.error('Error fetching user profile:', error);
+          // Fallback to basic Firebase user data
+          setUser({
+            id: firebaseUser.uid,
+            email: firebaseUser.email || '',
+            displayName: firebaseUser.displayName || 'User',
+            preferredLanguage: language,
+            createdAt: new Date(),
+            lastLoginAt: new Date(),
+            consentGiven: [],
+          });
+        }
       } else {
         setUser(null);
       }
@@ -317,7 +340,9 @@ function AppLayout() {
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
+      if (user) {
+        await logoutUser(user.id);
+      }
       setUser(null);
     } catch (error) {
       console.error('Error signing out:', error);
@@ -390,7 +415,7 @@ function AppLayout() {
                 <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'flex' } }}>
                   <Tabs 
                     value={
-                      ["/", "/unified-data", "/portfolio", "/tax-optimization", "/credit-score-monitor", "/risk-agent"].includes(location.pathname) 
+                      ["/", "/financial-report", "/portfolio", "/tax-optimization", "/dynamic-agents-hub", "/stock-monitor", "/risk-monitor", "/profile"].includes(location.pathname) 
                         ? location.pathname 
                         : false
                     }
@@ -422,11 +447,13 @@ function AppLayout() {
                     }}
                   >
                     <Tab label="Dashboard" value="/" component={Link} to="/" />
-                    <Tab label="Accounts" value="/unified-data" component={Link} to="/unified-data" />
+                    <Tab label="📊 Report" value="/financial-report" component={Link} to="/financial-report" />
                     <Tab label="Portfolio" value="/portfolio" component={Link} to="/portfolio" />
                     <Tab label="Tax" value="/tax-optimization" component={Link} to="/tax-optimization" />
-                    <Tab label="Credit" value="/credit-score-monitor" component={Link} to="/credit-score-monitor" />
                     <Tab label="🤖 AI Agents" value="/dynamic-agents-hub" component={Link} to="/dynamic-agents-hub" />
+                    <Tab label="� Stocks" value="/stock-monitor" component={Link} to="/stock-monitor" />
+                    <Tab label="⚠️ Risk" value="/risk-monitor" component={Link} to="/risk-monitor" />
+                    <Tab label="�👤 Profile" value="/profile" component={Link} to="/profile" />
                   </Tabs>
                 </Box>
               )}
@@ -476,7 +503,7 @@ function AppLayout() {
                     <MenuItem disabled>
                       <Typography variant="body2">{user.email}</Typography>
                     </MenuItem>
-                    <MenuItem onClick={() => { setAnchorEl(null); window.location.href = '/profile'; }}>
+                    <MenuItem onClick={() => { setAnchorEl(null); navigate('/profile'); }}>
                       <AccountCircle fontSize="small" sx={{ mr: 1 }} />
                       Profile
                     </MenuItem>
@@ -512,6 +539,10 @@ function AppLayout() {
                     <Navigate to="/login" replace />
                   )
                 }
+              />
+              <Route 
+                path="/financial-report" 
+                element={user ? <FinancialReport /> : <Navigate to="/" replace />} 
               />
               <Route 
                 path="/portfolio" 
@@ -550,6 +581,10 @@ function AppLayout() {
                 element={user ? <TaxOptimization /> : <Navigate to="/" replace />} 
               />
               <Route 
+                path="/ai-financial-advisor" 
+                element={user ? <AIFinancialAdvisor /> : <Navigate to="/" replace />} 
+              />
+              <Route 
                 path="/credit-score-monitor" 
                 element={user ? <CreditScoreMonitor /> : <Navigate to="/" replace />} 
               />
@@ -562,8 +597,16 @@ function AppLayout() {
                 element={user ? <DynamicAgentsHub /> : <Navigate to="/" replace />} 
               />
               <Route 
+                path="/stock-monitor" 
+                element={user ? <StockMonitoringDashboard /> : <Navigate to="/" replace />} 
+              />
+              <Route 
+                path="/risk-monitor" 
+                element={user ? <RiskMonitoringDashboard /> : <Navigate to="/" replace />} 
+              />
+              <Route 
                 path="/profile" 
-                element={user ? <Profile /> : <Navigate to="/" replace />} 
+                element={user ? <EnhancedProfile /> : <Navigate to="/" replace />} 
               />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

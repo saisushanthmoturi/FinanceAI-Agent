@@ -20,37 +20,83 @@ import {
   Email,
   Lock,
 } from '@mui/icons-material';
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../config/firebase';
 import { useNavigate } from 'react-router-dom';
+import {
+  registerUser,
+  loginUser,
+  loginWithGoogle,
+  type RegistrationData,
+  type LoginCredentials,
+} from '../services/authService';
 
 const Login: React.FC = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const navigate = useNavigate();
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
     setLoading(true);
 
     try {
       if (isSignUp) {
+        // Validation
         if (password !== confirmPassword) {
           setError('Passwords do not match');
           setLoading(false);
           return;
         }
-        await createUserWithEmailAndPassword(auth, email, password);
+
+        if (password.length < 8) {
+          setError('Password must be at least 8 characters long');
+          setLoading(false);
+          return;
+        }
+
+        if (!displayName.trim()) {
+          setError('Display name is required');
+          setLoading(false);
+          return;
+        }
+
+        // Register user
+        const registrationData: RegistrationData = {
+          email,
+          password,
+          displayName: displayName.trim(),
+          phoneNumber: phoneNumber.trim() || undefined,
+        };
+
+        await registerUser(registrationData);
+        setSuccess('Account created successfully! Redirecting...');
+        
+        setTimeout(() => {
+          navigate('/');
+        }, 1500);
       } else {
-        await signInWithEmailAndPassword(auth, email, password);
+        // Login user
+        const credentials: LoginCredentials = {
+          email,
+          password,
+        };
+
+        await loginUser(credentials);
+        setSuccess('Login successful! Redirecting...');
+        
+        setTimeout(() => {
+          navigate('/');
+        }, 1000);
       }
-      navigate('/');
     } catch (err: any) {
       setError(err.message || 'Authentication failed');
     } finally {
@@ -60,12 +106,16 @@ const Login: React.FC = () => {
 
   const handleGoogleLogin = async () => {
     setError('');
+    setSuccess('');
     setLoading(true);
 
     try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-      navigate('/');
+      await loginWithGoogle();
+      setSuccess('Login successful! Redirecting...');
+      
+      setTimeout(() => {
+        navigate('/');
+      }, 1000);
     } catch (err: any) {
       setError(err.message || 'Google sign-in failed');
     } finally {
@@ -200,8 +250,39 @@ const Login: React.FC = () => {
             </Alert>
           )}
 
+          {success && (
+            <Alert severity="success" sx={{ mb: 3, borderRadius: 2 }}>
+              {success}
+            </Alert>
+          )}
+
           {/* Email/Password Form */}
           <form onSubmit={handleEmailLogin}>
+            {isSignUp && (
+              <>
+                <TextField
+                  fullWidth
+                  label="Full Name"
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  required
+                  sx={{ mb: 2.5 }}
+                  placeholder="Enter your full name"
+                />
+
+                <TextField
+                  fullWidth
+                  label="Phone Number (Optional)"
+                  type="tel"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  sx={{ mb: 2.5 }}
+                  placeholder="+1 234 567 8900"
+                />
+              </>
+            )}
+
             <TextField
               fullWidth
               label="Work Email"

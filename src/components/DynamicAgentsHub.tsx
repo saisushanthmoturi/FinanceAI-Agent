@@ -50,8 +50,9 @@ import {
   SmartToy as BotIcon,
 } from '@mui/icons-material';
 import { dynamicAgentFactory, DYNAMIC_AGENT_TEMPLATES } from '../services/dynamicAgents';
-import { customAgentBuilder } from '../services/customAgentBuilder';
-import type { CustomAgent, AgentTemplate } from '../services/customAgentBuilder';
+import type { AgentTemplate, CustomAgent } from '../services/customAgentBuilder';
+import { getUserAgents, activateAgent, deactivateAgent, deleteAgent, type Agent } from '../services/agentMarketplace';
+import { useAppStore } from '../store/useAppStore';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -75,24 +76,29 @@ function TabPanel(props: TabPanelProps) {
 }
 
 export const DynamicAgentsHub: React.FC = () => {
+  const { user } = useAppStore();
   const [activeTab, setActiveTab] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
-  const [myAgents, setMyAgents] = useState<CustomAgent[]>([]);
+  const [myAgents, setMyAgents] = useState<Agent[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<AgentTemplate | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [loading, setLoading] = useState(false);
-  const userId = 'demo-user'; // Replace with actual user ID from auth
 
   // Load user's agents
   useEffect(() => {
-    loadMyAgents();
-  }, []);
+    if (user) {
+      loadMyAgents();
+    }
+  }, [user]);
 
   const loadMyAgents = async () => {
+    if (!user) return;
+    
     setLoading(true);
     try {
-      const agents = await customAgentBuilder.getAgentsByUser(userId);
+      const agents = await getUserAgents(user.id);
       setMyAgents(agents);
+      console.log('✅ Loaded agents:', agents);
     } catch (error) {
       console.error('Error loading agents:', error);
     } finally {
@@ -101,25 +107,38 @@ export const DynamicAgentsHub: React.FC = () => {
   };
 
   const handleToggleAgent = async (agentId: string, enabled: boolean) => {
+    if (!user) return;
+    
     try {
+      console.log(`🔄 Toggling agent ${agentId} to ${enabled ? 'active' : 'inactive'}`);
+      
       if (enabled) {
-        await customAgentBuilder.enableAgent(agentId);
+        await activateAgent(user.id, agentId);
+        console.log('✅ Agent activated');
       } else {
-        await customAgentBuilder.disableAgent(agentId);
+        await deactivateAgent(user.id, agentId);
+        console.log('✅ Agent deactivated');
       }
+      
+      // Reload agents to get updated status
       await loadMyAgents();
     } catch (error) {
       console.error('Error toggling agent:', error);
+      alert('Failed to toggle agent. Please try again.');
     }
   };
 
   const handleDeleteAgent = async (agentId: string) => {
+    if (!user) return;
+    
     if (window.confirm('Are you sure you want to delete this agent? This cannot be undone.')) {
       try {
-        await customAgentBuilder.deleteAgent(agentId, userId);
+        await deleteAgent(user.id, agentId);
         await loadMyAgents();
+        console.log('✅ Agent deleted');
       } catch (error) {
         console.error('Error deleting agent:', error);
+        alert('Failed to delete agent. Please try again.');
       }
     }
   };
@@ -130,13 +149,13 @@ export const DynamicAgentsHub: React.FC = () => {
     template.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const getAgentIcon = (category: string) => {
-    switch (category) {
-      case 'investment':
+  const getAgentIcon = (type: string) => {
+    switch (type) {
+      case 'risk_and_sell':
         return <TrendingUpIcon />;
-      case 'savings':
+      case 'rebalancing':
         return <SavingsIcon />;
-      case 'spending':
+      case 'tax_loss_harvesting':
         return <LabelIcon />;
       default:
         return <BotIcon />;
@@ -193,7 +212,7 @@ export const DynamicAgentsHub: React.FC = () => {
                   <CardContent>
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                       <Avatar sx={{ mr: 2, bgcolor: 'primary.main' }}>
-                        {getAgentIcon(agent.category)}
+                        {getAgentIcon(agent.type)}
                       </Avatar>
                       <Box sx={{ flexGrow: 1 }}>
                         <Typography variant="h6">{agent.name}</Typography>
@@ -226,7 +245,11 @@ export const DynamicAgentsHub: React.FC = () => {
                       </Typography>
                       <br />
                       <Typography variant="caption" color="text.secondary">
-                        Last Run: {agent.lastRunAt ? new Date(agent.lastRunAt).toLocaleString() : 'Never'}
+                        Last Run: {agent.lastExecutedAt ? new Date(agent.lastExecutedAt).toLocaleString() : 'Never'}
+                      </Typography>
+                      <br />
+                      <Typography variant="caption" color="text.secondary">
+                        Execution Mode: {agent.executionMode}
                       </Typography>
                     </Box>
 
@@ -439,9 +462,15 @@ const CreateAgentDialog: React.FC<CreateAgentDialogProps> = ({
   onClose,
   onSuccess,
 }) => {
+  const { user } = useAppStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const userId = 'demo-user'; // Replace with actual user ID
+  
+  if (!user) {
+    return null; // Don't render if no user
+  }
+  
+  const userId = user.id;
 
   const handleCreate = async () => {
     setLoading(true);
@@ -449,10 +478,10 @@ const CreateAgentDialog: React.FC<CreateAgentDialogProps> = ({
 
     try {
       // Create agent based on template
-      let agent: CustomAgent;
+      let customAgent: CustomAgent;
 
       if (template.id === 'template_risk_auto_sell') {
-        agent = await dynamicAgentFactory.createRiskAutoSellAgent(userId, {
+        customAgent = await dynamicAgentFactory.createRiskAutoSellAgent(userId, {
           holdings: [
             {
               symbol: 'INFY',
@@ -466,7 +495,7 @@ const CreateAgentDialog: React.FC<CreateAgentDialogProps> = ({
           confirmationTimeoutMinutes: 30,
         });
       } else if (template.id === 'template_auto_savings') {
-        agent = await dynamicAgentFactory.createAutoSavingsAgent(userId, {
+        customAgent = await dynamicAgentFactory.createAutoSavingsAgent(userId, {
           fromAccount: 'checking',
           toAccount: 'savings',
           savingsRule: 'percentage',
@@ -479,14 +508,14 @@ const CreateAgentDialog: React.FC<CreateAgentDialogProps> = ({
           notificationChannels: ['push', 'in_app'],
         });
       } else if (template.id === 'template_expense_classification') {
-        agent = await dynamicAgentFactory.createExpenseClassificationAgent(userId, {
+        customAgent = await dynamicAgentFactory.createExpenseClassificationAgent(userId, {
           categories: ['personal', 'family', 'rent', 'utilities', 'entertainment', 'groceries', 'other'],
           autoApply: true,
           confidenceThreshold: 0.8,
           notificationChannels: ['in_app'],
         });
       } else if (template.id === 'template_opportunity_recommendation') {
-        agent = await dynamicAgentFactory.createOpportunityRecommendationAgent(userId, {
+        customAgent = await dynamicAgentFactory.createOpportunityRecommendationAgent(userId, {
           riskProfile: 'moderate',
           investmentHorizon: 'medium',
           monthlyInvestmentBudget: 10000,
@@ -505,7 +534,7 @@ const CreateAgentDialog: React.FC<CreateAgentDialogProps> = ({
         throw new Error('Unknown template');
       }
 
-      console.log('✅ Agent created successfully:', agent.id);
+      console.log('✅ Agent created successfully:', customAgent.id);
       onSuccess();
     } catch (err) {
       console.error('Error creating agent:', err);
