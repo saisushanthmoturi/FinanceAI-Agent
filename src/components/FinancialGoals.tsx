@@ -2,7 +2,6 @@ import { useState } from 'react';
 import {
   Box,
   Container,
-  Paper,
   Typography,
   Card,
   CardContent,
