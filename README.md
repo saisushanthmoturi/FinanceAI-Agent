@@ -6,7 +6,7 @@
 
 **FinanceAI Pro** is a cutting-edge, AI-powered financial management platform designed for modern professionals. It combines real-time data aggregation, autonomous AI agents, and a resilient "local-first" architecture to provide a seamless, multilingual financial experience.
 
----
+
 
 ## ✨ Key Features
 
