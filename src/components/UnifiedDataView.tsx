@@ -165,9 +165,14 @@ const UnifiedDataView: React.FC = () => {
     setOpenBankDialog(true);
   };
 
-  const handleSaveBankAccount = () => {
-    if (!user) return;
-    
+  const handleSaveBankAccount = async () => {
+    if (!user) {
+      // Assuming setSnackbar, setAddAccountLoading, setOpenAddAccount, setFormData are defined elsewhere or need to be added.
+      // For now, using existing alert and state updates.
+      alert(language === 'en' ? 'Please login to save account' : 'खाता सहेजने के लिए कृपया लॉगिन करें');
+      return;
+    }
+
     // Validate form
     if (bankFormData.accountNumber !== bankFormData.confirmAccountNumber) {
       alert(language === 'en' ? 'Account numbers do not match' : 'खाता संख्या मेल नहीं खाती');

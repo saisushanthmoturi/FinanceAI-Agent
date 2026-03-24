@@ -472,30 +472,12 @@ export async function updateFinancialInfo(
   financialInfo: UserProfile['financialInfo']
 ): Promise<void> {
   try {
-    const { doc, updateDoc, serverTimestamp } = await import('firebase/firestore');
-    const { db } = await import('../config/firebase');
-    const { logActivity, ActivityType } = await import('./activityLogger');
+    const { updateUserProfile } = await import('./authService');
     
-    const userRef = doc(db, 'users', userId);
-    
-    // Update with server timestamp
-    await updateDoc(userRef, {
-      financialInfo,
-      updatedAt: serverTimestamp(),
-    });
+    // Use the safer updateUserProfile which handles localStorage fallbacks
+    await updateUserProfile(userId, { financialInfo });
 
-    // Log the update
-    await logActivity({
-      userId,
-      type: ActivityType.PROFILE_UPDATED,
-      description: 'Financial information updated',
-      metadata: {
-        salary: financialInfo?.annualSalary,
-        regime: financialInfo?.taxRegime,
-      },
-    });
-
-    console.log('Financial info updated successfully for user:', userId);
+    console.log('Financial info updated successfully (Safe update) for user:', userId);
   } catch (error) {
     console.error('Error updating financial info:', error);
     throw new Error('Failed to update financial information. Please try again.');

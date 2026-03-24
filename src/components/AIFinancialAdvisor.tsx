@@ -8,7 +8,8 @@
  * - Receive actionable monthly plans
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
 import {
   Container,
   Paper,
@@ -106,7 +107,43 @@ const AIFinancialAdvisor: React.FC = () => {
 
   const steps = ['Financial Profile', 'Add Goals', 'Get AI Plan'];
 
+  // Initialize with demo data if user is demo
+  useEffect(() => {
+    if (user && (user.id === 'demo-user-123' || user.id.startsWith('demo-'))) {
+      setFinancialInput({
+        monthlySalary: 150000,
+        monthlyExpenses: 65000,
+        currentSavings: 1200000,
+        savingsPercentage: 35,
+        riskProfile: 'aggressive',
+        goals: [
+          {
+            id: 'g-1',
+            title: 'Dream Home (3BHK)',
+            targetAmount: 15000000,
+            currentSavings: 3500000,
+            timelineMonths: 72,
+            priority: 'high',
+            category: 'home',
+            createdAt: new Date(),
+          },
+          {
+            id: 'g-2',
+            title: 'European Vacation',
+            targetAmount: 800000,
+            currentSavings: 150000,
+            timelineMonths: 18,
+            priority: 'medium',
+            category: 'travel',
+            createdAt: new Date(),
+          }
+        ],
+      });
+    }
+  }, [user]);
+
   const handleNext = () => {
+
     console.log('handleNext called, activeStep:', activeStep);
     console.log('Goals count:', financialInput.goals.length);
     console.log('Monthly salary:', financialInput.monthlySalary);

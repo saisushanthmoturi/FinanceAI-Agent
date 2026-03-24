@@ -890,22 +890,26 @@ Provide a 3-sentence personalized investment strategy summary.
       status: 'Active',
     };
 
-    // Save to Firestore
+    // 1. Save to localStorage first (immediate feedback)
+    const localKey = `ai_portfolio_${userId}`;
+    const localData = localStorage.getItem(localKey);
+    let portfolio: PortfolioInvestment[] = localData ? JSON.parse(localData) : [];
+    portfolio.push(portfolioInvestment);
+    localStorage.setItem(localKey, JSON.stringify(portfolio));
+    console.log('✅ Investment added to local storage:', portfolioInvestment.id);
+
+    // 2. Try Firestore
     try {
       await addDoc(collection(db, 'portfolio_investments'), {
         ...portfolioInvestment,
         purchaseDate: Timestamp.fromDate(portfolioInvestment.purchaseDate),
         lastUpdated: Timestamp.fromDate(portfolioInvestment.lastUpdated),
       });
+      console.log('✅ Investment added to Firestore');
     } catch (error) {
-      console.error('Error adding to portfolio:', error);
-      // Fallback to localStorage
-      const portfolio = JSON.parse(localStorage.getItem(`portfolio_${userId}`) || '[]');
-      portfolio.push(portfolioInvestment);
-      localStorage.setItem(`portfolio_${userId}`, JSON.stringify(portfolio));
+      console.warn('Firestore add failed, but saved locally:', error);
     }
 
-    console.log('✅ Investment added to portfolio:', portfolioInvestment.id);
     return portfolioInvestment;
   }
 
@@ -913,6 +917,70 @@ Provide a 3-sentence personalized investment strategy summary.
    * Get user's portfolio
    */
   async getPortfolio(userId: string): Promise<PortfolioInvestment[]> {
+    if (userId.startsWith('demo-')) {
+      console.log('Using rich default portfolio for demo user');
+      return [
+        {
+          id: 'p-1',
+          userId,
+          type: 'Stock',
+          symbol: 'RELIANCE',
+          name: 'Reliance Industries Ltd',
+          quantity: 50,
+          purchasePrice: 2250,
+          currentPrice: 2450,
+          investmentAmount: 112500,
+          currentValue: 122500,
+          profitLoss: 10000,
+          profitLossPercent: 8.8,
+          purchaseDate: new Date(Date.now() - 90 * 86400000),
+          lastUpdated: new Date(),
+          autoTrackingEnabled: true,
+          alerts: [],
+          status: 'Active',
+        },
+        {
+          id: 'p-2',
+          userId,
+          type: 'Mutual Fund',
+          symbol: 'AXISBLUE',
+          name: 'Axis Bluechip Fund',
+          quantity: 1200,
+          purchasePrice: 42.5,
+          currentPrice: 48.5,
+          investmentAmount: 51000,
+          currentValue: 58200,
+          profitLoss: 7200,
+          profitLossPercent: 14.1,
+          purchaseDate: new Date(Date.now() - 180 * 86400000),
+          lastUpdated: new Date(),
+          autoTrackingEnabled: true,
+          alerts: [],
+          status: 'Active',
+        },
+        {
+          id: 'p-3',
+          userId,
+          type: 'Stock',
+          symbol: 'HDFCBANK',
+          name: 'HDFC Bank Ltd',
+          quantity: 100,
+          purchasePrice: 1550,
+          currentPrice: 1650,
+          investmentAmount: 155000,
+          currentValue: 165000,
+          profitLoss: 10000,
+          profitLossPercent: 6.4,
+          purchaseDate: new Date(Date.now() - 365 * 86400000),
+          lastUpdated: new Date(),
+          autoTrackingEnabled: true,
+          alerts: [],
+          status: 'Active',
+        }
+      ];
+    }
+
+    // Try Firestore first
     try {
       const q = query(
         collection(db, 'portfolio_investments'),
@@ -941,10 +1009,14 @@ Provide a 3-sentence personalized investment strategy summary.
       console.error('Error fetching portfolio:', error);
       
       // Fallback to localStorage
-      const portfolio = JSON.parse(localStorage.getItem(`portfolio_${userId}`) || '[]');
-      return portfolio;
+      const portfolioString = localStorage.getItem(`portfolio_${userId}`);
+      if (portfolioString) {
+        return JSON.parse(portfolioString);
+      }
+      return [];
     }
   }
+
 
   /**
    * Update portfolio prices and track performance

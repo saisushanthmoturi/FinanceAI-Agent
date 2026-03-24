@@ -1,13 +1,12 @@
 /**
  * Portfolio Service
- * Manages user investment portfolio with Firestore persistence
+ * Manages user investment portfolio with Firestore persistence and LocalStorage fallback
  * 
  * Features:
  * - Add/Remove/Update investments
  * - Real-time P/L calculations
  * - Asset allocation tracking
- * - Performance history
- * - Integration with Profile page
+ * - LocalStorage sync for resilience
  */
 
 import {
@@ -24,7 +23,6 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { logActivity, ActivityType } from './activityLogger';
 
 export type AssetType = 
   | 'stocks'
@@ -39,16 +37,16 @@ export type AssetType =
 export interface Investment {
   id: string;
   userId: string;
-  name: string; // Stock symbol or fund name
+  name: string;
   type: AssetType;
-  quantity: number; // Number of units/shares
-  buyPrice: number; // Price per unit when bought
-  currentPrice?: number; // Current market price
-  amount: number; // Total invested (quantity * buyPrice)
-  currentValue?: number; // Current total value (quantity * currentPrice)
-  returns?: number; // Profit/Loss in currency
-  returnsPercentage?: number; // Profit/Loss in percentage
-  allocation?: number; // Percentage of total portfolio
+  quantity: number;
+  buyPrice: number;
+  currentPrice?: number;
+  amount: number;
+  currentValue?: number;
+  returns?: number;
+  returnsPercentage?: number;
+  allocation?: number;
   purchaseDate: Date;
   notes?: string;
   createdAt: Date;
@@ -61,7 +59,7 @@ export interface PortfolioSummary {
   totalReturns: number;
   totalReturnsPercentage: number;
   totalInvestments: number;
-  assetAllocation: Record<AssetType, number>; // Type -> Percentage
+  assetAllocation: Partial<Record<AssetType, number>>;
   bestPerformer: Investment | null;
   worstPerformer: Investment | null;
 }
@@ -69,59 +67,55 @@ export interface PortfolioSummary {
 const PORTFOLIO_COLLECTION = 'portfolio';
 
 /**
- * Add a new investment to portfolio
+ * Add a new investment
  */
 export async function addInvestment(
   userId: string,
   investment: Omit<Investment, 'id' | 'userId' | 'createdAt' | 'updatedAt'>
 ): Promise<Investment> {
+  const investmentId = `inv_${userId}_${Date.now()}`;
+
+  const newInvestment: Investment = {
+    ...investment,
+    id: investmentId,
+    userId,
+    currentPrice: investment.buyPrice,
+    currentValue: investment.amount,
+    returns: 0,
+    returnsPercentage: 0,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  // 1. Save to LocalStorage first
+  const localKey = `manual_portfolio_${userId}`;
+  const localData = localStorage.getItem(localKey);
+  let portfolio: Investment[] = localData ? JSON.parse(localData) : [];
+  portfolio.push(newInvestment);
+  localStorage.setItem(localKey, JSON.stringify(portfolio));
+
   try {
-    const investmentId = `inv_${userId}_${Date.now()}`;
-
-    const newInvestment: Investment = {
-      ...investment,
-      id: investmentId,
-      userId,
-      currentPrice: investment.buyPrice, // Initially same as buy price
-      currentValue: investment.amount, // Initially same as invested
-      returns: 0,
-      returnsPercentage: 0,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
+    // 2. Try Firestore
     await setDoc(doc(db, PORTFOLIO_COLLECTION, investmentId), {
       ...newInvestment,
       purchaseDate: Timestamp.fromDate(new Date(investment.purchaseDate)),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
-
-    // Log activity
-    await logActivity({
-      userId,
-      type: ActivityType.PORTFOLIO_UPDATED,
-      description: `Added investment: ${investment.name}`,
-      metadata: {
-        investmentId,
-        type: investment.type,
-        amount: investment.amount,
-      },
-    });
-
-    console.log(`✅ Added investment: ${investment.name} - $${investment.amount}`);
-    return newInvestment;
+    console.log(`✅ Added investment to Firestore: ${investment.name}`);
   } catch (error) {
-    console.error('Error adding investment:', error);
-    throw new Error('Failed to add investment');
+    console.warn('Firestore add failed, but saved locally:', error);
   }
+
+  return newInvestment;
 }
 
 /**
- * Get all investments for a user
+ * Get all investments
  */
 export async function getUserInvestments(userId: string): Promise<Investment[]> {
   try {
+    // Try Firestore first
     const q = query(
       collection(db, PORTFOLIO_COLLECTION),
       where('userId', '==', userId)
@@ -129,170 +123,130 @@ export async function getUserInvestments(userId: string): Promise<Investment[]> 
 
     const snapshot = await getDocs(q);
     
-    const investments: Investment[] = snapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: data.id,
-        userId: data.userId,
-        name: data.name,
-        type: data.type,
-        quantity: data.quantity,
-        buyPrice: data.buyPrice,
-        currentPrice: data.currentPrice,
-        amount: data.amount,
-        currentValue: data.currentValue,
-        returns: data.returns,
-        returnsPercentage: data.returnsPercentage,
-        allocation: data.allocation,
-        purchaseDate: data.purchaseDate?.toDate() || new Date(),
-        notes: data.notes,
-        createdAt: data.createdAt?.toDate() || new Date(),
-        updatedAt: data.updatedAt?.toDate() || new Date(),
-      };
-    });
+    if (!snapshot.empty) {
+      const investments: Investment[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        // Simulate market fluctuation (between -5% and +10%)
+        const fluctuation = 1 + (Math.random() * 0.15 - 0.05);
+        const currentPrice = (data.currentPrice || data.buyPrice) * fluctuation;
+        const currentValue = data.quantity * currentPrice;
+        const returns = currentValue - data.amount;
+        const returnsPercentage = (returns / data.amount) * 100;
 
-    console.log(`✅ Loaded ${investments.length} investments for user ${userId}`);
-    return investments;
-  } catch (error) {
-    console.error('Error getting investments:', error);
-    throw new Error('Failed to load investments');
+        investments.push({
+          ...data,
+          id: doc.id,
+          currentPrice,
+          currentValue,
+          returns,
+          returnsPercentage,
+          purchaseDate: data.purchaseDate?.toDate() || new Date(),
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+        } as Investment);
+      });
+      // Sync local storage
+      localStorage.setItem(`manual_portfolio_${userId}`, JSON.stringify(investments));
+      return investments;
+    }
+  } catch (e) {
+    console.warn('Firestore portfolio fetch failed, using local fallback:', e);
   }
-}
 
-/**
- * Update investment (e.g., current price, notes)
- */
-export async function updateInvestment(
-  userId: string,
-  investmentId: string,
-  updates: Partial<Omit<Investment, 'id' | 'userId' | 'createdAt'>>
-): Promise<void> {
-  try {
-    const investmentRef = doc(db, PORTFOLIO_COLLECTION, investmentId);
-    const investmentDoc = await getDoc(investmentRef);
+  // Fallback to localStorage
+  const localKey = `manual_portfolio_${userId}`;
+  const localData = localStorage.getItem(localKey);
+  if (localData) {
+    const items = JSON.parse(localData);
+    return items.map((i: any) => {
+      // Re-calculate simulation for local items too
+      const fluctuation = 1 + (Math.random() * 0.15 - 0.05);
+      const currentPrice = (i.currentPrice || i.buyPrice) * fluctuation;
+      const currentValue = i.quantity * currentPrice;
+      const returns = currentValue - i.amount;
+      const returnsPercentage = (returns / i.amount) * 100;
 
-    if (!investmentDoc.exists()) {
-      throw new Error('Investment not found');
-    }
-
-    const investment = investmentDoc.data();
-    if (investment.userId !== userId) {
-      throw new Error('Unauthorized');
-    }
-
-    // Recalculate values if price updated
-    let updateData: any = { ...updates, updatedAt: serverTimestamp() };
-
-    if (updates.currentPrice !== undefined) {
-      const quantity = investment.quantity;
-      const buyPrice = investment.buyPrice;
-      const currentValue = quantity * updates.currentPrice;
-      const amount = quantity * buyPrice;
-      const returns = currentValue - amount;
-      const returnsPercentage = (returns / amount) * 100;
-
-      updateData = {
-        ...updateData,
+      return { 
+        ...i, 
+        currentPrice,
         currentValue,
         returns,
         returnsPercentage,
+        purchaseDate: new Date(i.purchaseDate),
+        createdAt: new Date(i.createdAt),
+        updatedAt: new Date(i.updatedAt)
       };
-    }
-
-    await updateDoc(investmentRef, updateData);
-
-    // Log activity
-    await logActivity({
-      userId,
-      type: ActivityType.PORTFOLIO_UPDATED,
-      description: `Updated investment: ${investment.name}`,
-      metadata: {
-        investmentId,
-        updates: Object.keys(updates),
-      },
     });
-
-    console.log(`✅ Updated investment: ${investmentId}`);
-  } catch (error) {
-    console.error('Error updating investment:', error);
-    throw new Error('Failed to update investment');
   }
+
+
+  // Demo data if and only if no local or firestore data exists
+  if (userId.startsWith('demo-')) {
+    return [
+      {
+        id: 'mock-1',
+        userId,
+        name: 'Reliance Industries',
+        type: 'stocks',
+        quantity: 10,
+        buyPrice: 2350,
+        currentPrice: 2500,
+        amount: 23500,
+        currentValue: 25000,
+        returns: 1500,
+        returnsPercentage: 6.38,
+        allocation: 45,
+        purchaseDate: new Date(Date.now() - 30 * 86400000),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+    ];
+  }
+
+  return [];
 }
 
 /**
  * Delete an investment
  */
-export async function deleteInvestment(
-  userId: string,
-  investmentId: string
-): Promise<void> {
+export async function deleteInvestment(userId: string, investmentId: string): Promise<void> {
+  // 1. Update LocalStorage
+  const localKey = `manual_portfolio_${userId}`;
+  const localData = localStorage.getItem(localKey);
+  if (localData) {
+    let portfolio: Investment[] = JSON.parse(localData);
+    portfolio = portfolio.filter(i => i.id !== investmentId);
+    localStorage.setItem(localKey, JSON.stringify(portfolio));
+  }
+
+  // 2. Try Firestore
   try {
-    const investmentRef = doc(db, PORTFOLIO_COLLECTION, investmentId);
-    const investmentDoc = await getDoc(investmentRef);
-
-    if (!investmentDoc.exists()) {
-      throw new Error('Investment not found');
-    }
-
-    const investment = investmentDoc.data();
-    if (investment.userId !== userId) {
-      throw new Error('Unauthorized');
-    }
-
-    await deleteDoc(investmentRef);
-
-    // Log activity
-    await logActivity({
-      userId,
-      type: ActivityType.PORTFOLIO_UPDATED,
-      description: `Removed investment: ${investment.name}`,
-      metadata: {
-        investmentId,
-        type: investment.type,
-      },
-    });
-
-    console.log(`✅ Deleted investment: ${investmentId}`);
+    await deleteDoc(doc(db, PORTFOLIO_COLLECTION, investmentId));
   } catch (error) {
-    console.error('Error deleting investment:', error);
-    throw new Error('Failed to delete investment');
+    console.warn('Firestore delete failed, but removed locally:', error);
   }
 }
 
 /**
- * Calculate portfolio summary
+ * Calculate Summary
  */
 export function calculatePortfolioSummary(investments: Investment[]): PortfolioSummary {
-  if (investments.length === 0) {
-    return {
-      totalInvested: 0,
-      totalCurrentValue: 0,
-      totalReturns: 0,
-      totalReturnsPercentage: 0,
-      totalInvestments: 0,
-      assetAllocation: {} as Record<AssetType, number>,
-      bestPerformer: null,
-      worstPerformer: null,
-    };
-  }
-
   const totalInvested = investments.reduce((sum, inv) => sum + inv.amount, 0);
   const totalCurrentValue = investments.reduce((sum, inv) => sum + (inv.currentValue || inv.amount), 0);
   const totalReturns = totalCurrentValue - totalInvested;
-  const totalReturnsPercentage = (totalReturns / totalInvested) * 100;
+  const totalReturnsPercentage = totalInvested > 0 ? (totalReturns / totalInvested) * 100 : 0;
 
-  // Calculate asset allocation
-  const assetAllocation: Record<string, number> = {};
-  investments.forEach(inv => {
-    const value = inv.currentValue || inv.amount;
-    const percentage = (value / totalCurrentValue) * 100;
-    assetAllocation[inv.type] = (assetAllocation[inv.type] || 0) + percentage;
-  });
-
-  // Find best and worst performers
-  const sorted = [...investments].sort((a, b) => 
-    (b.returnsPercentage || 0) - (a.returnsPercentage || 0)
-  );
+  const allocation: Partial<Record<AssetType, number>> = {};
+  if (totalCurrentValue > 0) {
+    investments.forEach(inv => {
+      const value = inv.currentValue || inv.amount;
+      allocation[inv.type] = (allocation[inv.type] || 0) + (value / totalCurrentValue) * 100;
+      inv.allocation = Math.round((value / totalCurrentValue) * 100);
+      inv.returns = value - inv.amount;
+      inv.returnsPercentage = (inv.returns / inv.amount) * 100;
+    });
+  }
 
   return {
     totalInvested,
@@ -300,71 +254,8 @@ export function calculatePortfolioSummary(investments: Investment[]): PortfolioS
     totalReturns,
     totalReturnsPercentage,
     totalInvestments: investments.length,
-    assetAllocation: assetAllocation as Record<AssetType, number>,
-    bestPerformer: sorted[0] || null,
-    worstPerformer: sorted[sorted.length - 1] || null,
+    assetAllocation: allocation,
+    bestPerformer: null,
+    worstPerformer: null,
   };
-}
-
-/**
- * Update current prices for all investments (for real-time tracking)
- * This would typically call a market data API
- */
-export async function refreshPrices(userId: string): Promise<void> {
-  try {
-    const investments = await getUserInvestments(userId);
-
-    // In production, fetch real prices from market API
-    // For now, simulate small price changes
-    const updates = investments.map(async (inv) => {
-      // Simulate ±2% price change
-      const priceChange = (Math.random() - 0.5) * 0.04;
-      const newPrice = inv.buyPrice * (1 + priceChange);
-
-      return updateInvestment(userId, inv.id, {
-        currentPrice: newPrice,
-      });
-    });
-
-    await Promise.all(updates);
-    console.log(`✅ Refreshed prices for ${investments.length} investments`);
-  } catch (error) {
-    console.error('Error refreshing prices:', error);
-    throw new Error('Failed to refresh prices');
-  }
-}
-
-/**
- * Get portfolio performance history
- * This would typically aggregate historical data
- */
-export interface PortfolioPerformance {
-  date: Date;
-  value: number;
-  invested: number;
-  returns: number;
-}
-
-export async function getPortfolioPerformance(
-  _userId: string,
-  days: number = 30
-): Promise<PortfolioPerformance[]> {
-  // In production, this would query historical data
-  // For now, generate mock data
-  const performance: PortfolioPerformance[] = [];
-  const today = new Date();
-
-  for (let i = days; i >= 0; i--) {
-    const date = new Date(today);
-    date.setDate(date.getDate() - i);
-
-    performance.push({
-      date,
-      value: 100000 + (days - i) * 1000 + Math.random() * 5000,
-      invested: 100000,
-      returns: (days - i) * 1000 + Math.random() * 5000,
-    });
-  }
-
-  return performance;
 }

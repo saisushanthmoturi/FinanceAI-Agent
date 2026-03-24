@@ -166,32 +166,102 @@ export class AccountAggregatorService {
   }
 
   /**
-   * Get all accounts for a user
+   * Get all active accounts for a user
    */
   async getUserAccounts(userId: string): Promise<FinancialAccount[]> {
     try {
-      const q = query(
-        collection(db, 'accounts'),
-        where('userId', '==', userId),
-        where('isActive', '==', true)
-      );
-      
-      const querySnapshot = await getDocs(q);
-      const accounts: FinancialAccount[] = [];
-      
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        accounts.push({
-          id: doc.id,
-          ...data,
-          lastSynced: data.lastSynced.toDate(),
-        } as FinancialAccount);
-      });
-      
-      return accounts;
+      // 1. Try Firestore first
+      try {
+        const q = query(
+          collection(db, 'accounts'),
+          where('userId', '==', userId),
+          where('isActive', '==', true)
+        );
+        
+        const querySnapshot = await getDocs(q);
+        
+        if (!querySnapshot.empty) {
+          const accounts: FinancialAccount[] = [];
+          
+          querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            accounts.push({
+              id: doc.id,
+              ...data,
+              lastSynced: data.lastSynced.toDate(),
+            } as FinancialAccount);
+          });
+          
+          // Sync local storage
+          localStorage.setItem(`accounts_${userId}`, JSON.stringify(accounts));
+          return accounts;
+        }
+      } catch (e) {
+        console.warn('Firestore accounts fetch failed, using local fallback:', e);
+      }
+
+      // 2. Try localStorage fallback
+      const localData = localStorage.getItem(`accounts_${userId}`);
+      if (localData) {
+        const accounts = JSON.parse(localData);
+        return accounts.map((acc: any) => ({ ...acc, lastSynced: new Date(acc.lastSynced) }));
+      }
+
+      // 3. Absolute default for demo/empty state
+      if (userId.startsWith('demo-')) {
+        console.log('Using enriched mock accounts for demo');
+        return [
+          {
+            id: 'acc-1',
+            userId,
+            accountType: 'bank',
+            institutionName: 'HDFC Bank (Savings)',
+            accountNumber: 'XXXX9876',
+            balance: 450000,
+            currency: 'INR',
+            lastSynced: new Date(),
+            isActive: true,
+          },
+          {
+            id: 'acc-2',
+            userId,
+            accountType: 'bank',
+            institutionName: 'ICICI Bank (Salary)',
+            accountNumber: 'XXXX5432',
+            balance: 125000,
+            currency: 'INR',
+            lastSynced: new Date(),
+            isActive: true,
+          },
+          {
+            id: 'acc-3',
+            userId,
+            accountType: 'mutual_fund',
+            institutionName: 'Zerodha (Equity)',
+            accountNumber: 'XXXX1122',
+            balance: 1500000,
+            currency: 'INR',
+            lastSynced: new Date(),
+            isActive: true,
+          },
+          {
+            id: 'acc-4',
+            userId,
+            accountType: 'insurance',
+            institutionName: 'LIC (Term Plan)',
+            accountNumber: 'XXXX3344',
+            balance: 50000,
+            currency: 'INR',
+            lastSynced: new Date(),
+            isActive: true,
+          }
+        ];
+      }
+
+      return [];
     } catch (error) {
       console.error('Error getting user accounts:', error);
-      throw error;
+      return [];
     }
   }
 

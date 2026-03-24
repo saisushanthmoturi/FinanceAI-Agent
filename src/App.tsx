@@ -13,21 +13,27 @@ import {
   IconButton,
   Menu,
   MenuItem,
-  Tabs,
-  Tab,
+  Avatar,
+  Tooltip,
+  useMediaQuery,
 } from '@mui/material';
 import {
   Brightness4,
   Brightness7,
   Language,
-  AccountCircle,
   Logout,
+  KeyboardArrowDown,
 } from '@mui/icons-material';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from './store/useAppStore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './config/firebase';
 import { logoutUser, ensureUserProfile } from './services/authService';
+import { useTranslation } from './hooks/useTranslation';
+
+
+// Lazy load components for better performance
 import Dashboard from './components/Dashboard';
 import ChatBot from './components/ChatBot';
 import ScenarioSimulator from './components/ScenarioSimulator';
@@ -50,176 +56,77 @@ import FinancialReport from './components/FinancialReport';
 import Login from './components/Login';
 import './App.css';
 
-// Separate component for the layout that uses useLocation
+const PageWrapper = ({ children }: { children: React.ReactNode }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -10 }}
+    transition={{ duration: 0.3, ease: 'easeOut' }}
+    style={{ height: '100%', width: '100%' }}
+  >
+    {children}
+  </motion.div>
+);
+
 function AppLayout() {
   const { user, setUser, darkMode, toggleDarkMode, language, setLanguage, chatOpen, setChatOpen } = useAppStore();
+  const { t } = useTranslation();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [langAnchorEl, setLangAnchorEl] = useState<null | HTMLElement>(null);
   const location = useLocation();
   const navigate = useNavigate();
 
+  const isMobile = useMediaQuery('(max-width:600px)');
+
   const theme = createTheme({
     palette: {
       mode: darkMode ? 'dark' : 'light',
       primary: {
-        main: '#1e40af', // Deep professional blue
+        main: '#1e40af',
         light: '#3b82f6',
         dark: '#1e3a8a',
         contrastText: '#ffffff',
       },
       secondary: {
-        main: '#64748b', // Neutral slate
+        main: '#64748b',
         light: '#94a3b8',
         dark: '#475569',
       },
-      success: {
-        main: '#059669', // Emerald green
-        light: '#10b981',
-        dark: '#047857',
-      },
-      warning: {
-        main: '#d97706', // Amber
-        light: '#f59e0b',
-        dark: '#b45309',
-      },
-      error: {
-        main: '#dc2626', // Professional red
-        light: '#ef4444',
-        dark: '#b91c1c',
-      },
-      info: {
-        main: '#0284c7', // Sky blue
-        light: '#0ea5e9',
-        dark: '#0369a1',
-      },
       background: {
-        default: darkMode ? '#0f172a' : '#f1f5f9', // Slate background
+        default: darkMode ? '#0f172a' : '#f8fafc',
         paper: darkMode ? '#1e293b' : '#ffffff',
       },
       text: {
         primary: darkMode ? '#f1f5f9' : '#1e293b',
         secondary: darkMode ? '#94a3b8' : '#64748b',
       },
-      divider: darkMode ? '#334155' : '#e2e8f0',
-      grey: {
-        50: '#f8fafc',
-        100: '#f1f5f9',
-        200: '#e2e8f0',
-        300: '#cbd5e1',
-        400: '#94a3b8',
-        500: '#64748b',
-        600: '#475569',
-        700: '#334155',
-        800: '#1e293b',
-        900: '#0f172a',
-      },
     },
     typography: {
-      fontFamily: '"Inter", "Roboto", "Open Sans", "Helvetica Neue", "Arial", sans-serif',
-      h1: {
-        fontWeight: 700,
-        fontSize: '2.5rem',
-        lineHeight: 1.2,
-        letterSpacing: '-0.02em',
-      },
-      h2: {
-        fontWeight: 700,
-        fontSize: '2rem',
-        lineHeight: 1.3,
-        letterSpacing: '-0.01em',
-      },
-      h3: {
-        fontWeight: 600,
-        fontSize: '1.75rem',
-        lineHeight: 1.3,
-      },
-      h4: {
-        fontWeight: 600,
-        fontSize: '1.5rem',
-        lineHeight: 1.4,
-      },
-      h5: {
-        fontWeight: 600,
-        fontSize: '1.25rem',
-        lineHeight: 1.4,
-      },
-      h6: {
-        fontWeight: 600,
-        fontSize: '1rem',
-        lineHeight: 1.5,
-      },
-      subtitle1: {
-        fontSize: '1rem',
-        lineHeight: 1.5,
-        fontWeight: 500,
-      },
-      subtitle2: {
-        fontSize: '0.875rem',
-        lineHeight: 1.5,
-        fontWeight: 500,
-      },
-      body1: {
-        fontSize: '1rem',
-        lineHeight: 1.5,
-      },
-      body2: {
-        fontSize: '0.875rem',
-        lineHeight: 1.5,
-      },
-      button: {
-        fontWeight: 500,
-        fontSize: '0.875rem',
-        textTransform: 'none',
-      },
-      caption: {
-        fontSize: '0.75rem',
-        lineHeight: 1.5,
-      },
+      fontFamily: '"Inter", "Outfit", system-ui, sans-serif',
+      h1: { fontWeight: 800, letterSpacing: '-0.02em' },
+      h2: { fontWeight: 800, letterSpacing: '-0.01em' },
+      h3: { fontWeight: 700 },
+      h4: { fontWeight: 700 },
+      h5: { fontWeight: 600 },
+      h6: { fontWeight: 600 },
+      button: { fontWeight: 600, textTransform: 'none' },
     },
     shape: {
-      borderRadius: 8,
+      borderRadius: 12,
     },
-    shadows: [
-      'none',
-      '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-      '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1)',
-      '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)',
-      '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)',
-      '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
-      '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-      ...Array(18).fill('none'),
-    ] as any,
     components: {
       MuiButton: {
         styleOverrides: {
           root: {
-            textTransform: 'none',
-            fontWeight: 500,
-            borderRadius: 6,
-            padding: '8px 16px',
-            fontSize: '0.875rem',
-            transition: 'all 0.2s ease-in-out',
+            borderRadius: 10,
+            padding: '8px 20px',
+            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
           },
           contained: {
-            boxShadow: 'none',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
             '&:hover': {
-              boxShadow: '0 4px 12px rgba(30, 64, 175, 0.25)',
-              transform: 'translateY(-1px)',
-            },
-            '&:active': {
-              transform: 'translateY(0)',
-            },
-          },
-          outlined: {
-            borderWidth: '1.5px',
-            '&:hover': {
-              borderWidth: '1.5px',
-              backgroundColor: 'rgba(30, 64, 175, 0.04)',
-            },
-          },
-          text: {
-            '&:hover': {
-              backgroundColor: 'rgba(30, 64, 175, 0.04)',
+              transform: 'translateY(-2px)',
+              boxShadow: '0 10px 15px -3px rgba(30, 64, 175, 0.3)',
             },
           },
         },
@@ -227,74 +134,20 @@ function AppLayout() {
       MuiCard: {
         styleOverrides: {
           root: {
-            borderRadius: 12,
-            border: darkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #e2e8f0',
-            boxShadow: darkMode
-              ? '0 4px 6px rgba(0, 0, 0, 0.3)'
-              : '0 1px 3px rgba(0, 0, 0, 0.1)',
-            transition: 'box-shadow 0.2s ease-in-out, transform 0.2s ease-in-out',
-            '&:hover': {
-              boxShadow: darkMode
-                ? '0 10px 15px rgba(0, 0, 0, 0.4)'
-                : '0 4px 12px rgba(0, 0, 0, 0.15)',
-            },
-          },
-        },
-      },
-      MuiPaper: {
-        styleOverrides: {
-          root: {
+            borderRadius: 16,
             backgroundImage: 'none',
-          },
-          elevation1: {
-            boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-          },
-          elevation2: {
-            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1)',
-          },
-          elevation3: {
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)',
+            border: darkMode ? '1px solid rgba(255, 255, 255, 0.05)' : '1px solid rgba(0, 0, 0, 0.05)',
+            boxShadow: darkMode ? '0 4px 20px rgba(0, 0, 0, 0.4)' : '0 4px 20px rgba(0, 0, 0, 0.05)',
           },
         },
       },
-      MuiTextField: {
+      MuiAppBar: {
         styleOverrides: {
           root: {
-            '& .MuiOutlinedInput-root': {
-              borderRadius: 8,
-              transition: 'all 0.2s ease-in-out',
-              '&:hover .MuiOutlinedInput-notchedOutline': {
-                borderColor: '#3b82f6',
-              },
-              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                borderWidth: '2px',
-              },
-            },
-          },
-        },
-      },
-      MuiChip: {
-        styleOverrides: {
-          root: {
-            fontWeight: 500,
-            fontSize: '0.75rem',
-            borderRadius: 6,
-          },
-        },
-      },
-      MuiLinearProgress: {
-        styleOverrides: {
-          root: {
-            borderRadius: 4,
-            height: 6,
-          },
-        },
-      },
-      MuiTableCell: {
-        styleOverrides: {
-          head: {
-            fontWeight: 600,
-            backgroundColor: darkMode ? '#1e293b' : '#f8fafc',
+            backgroundColor: darkMode ? 'rgba(15, 23, 42, 0.8)' : 'rgba(255, 255, 255, 0.8)',
+            backdropFilter: 'blur(12px)',
+            borderBottom: darkMode ? '1px solid rgba(255, 255, 255, 0.05)' : '1px solid rgba(0, 0, 0, 0.05)',
+            color: darkMode ? '#f1f5f9' : '#1e293b',
           },
         },
       },
@@ -305,9 +158,7 @@ function AppLayout() {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
-          // Ensure user profile exists in Firestore (creates if missing)
           const userProfile = await ensureUserProfile(firebaseUser);
-          
           setUser({
             id: userProfile.uid,
             email: userProfile.email,
@@ -319,7 +170,6 @@ function AppLayout() {
           });
         } catch (error) {
           console.error('Error fetching user profile:', error);
-          // Fallback to basic Firebase user data
           setUser({
             id: firebaseUser.uid,
             email: firebaseUser.email || '',
@@ -334,15 +184,12 @@ function AppLayout() {
         setUser(null);
       }
     });
-
     return () => unsubscribe();
   }, []);
 
   const handleLogout = async () => {
     try {
-      if (user) {
-        await logoutUser(user.id);
-      }
+      if (user) await logoutUser(user.id);
       setUser(null);
     } catch (error) {
       console.error('Error signing out:', error);
@@ -355,292 +202,220 @@ function AppLayout() {
     setLangAnchorEl(null);
   };
 
-  const languageNames = {
-    en: 'English',
-    hi: 'हिंदी (Hindi)',
-    te: 'తెలుగు (Telugu)',
-    ta: 'தமிழ் (Tamil)',
-    ml: 'മലയാളം (Malayalam)',
-  };
+  const menuItems = [
+    { label: t('dashboard'), path: '/' },
+    { label: t('report'), path: '/financial-report' },
+    { label: t('portfolio'), path: '/portfolio' },
+    { label: t('tax'), path: '/tax-optimization' },
+    { label: t('agents'), path: '/dynamic-agents-hub' },
+    { label: t('stocks'), path: '/stock-monitor' },
+    { label: t('risk'), path: '/risk-monitor' },
+  ];
+
 
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-        {/* App Bar */}
-        <AppBar 
-          position="static" 
-          elevation={0}
-          sx={{
-            backgroundColor: darkMode ? '#1e293b' : '#ffffff',
-            color: darkMode ? '#f1f5f9' : '#1e293b',
-            borderBottom: `1px solid ${darkMode ? '#334155' : '#e2e8f0'}`,
-          }}
-        >
-            <Toolbar sx={{ py: 1 }}>
-              <Typography 
-                variant="h6" 
-                component={Link} 
-                to="/" 
-                sx={{ 
-                  flexGrow: 0, 
-                  fontWeight: 700,
-                  textDecoration: 'none',
-                  color: 'primary.main',
-                  mr: 6,
+      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: 'background.default' }}>
+        <AppBar position="sticky" elevation={0}>
+          <Toolbar sx={{ py: 1, px: { xs: 2, md: 4 } }}>
+            <Typography 
+              variant="h6" 
+              component={Link} 
+              to="/" 
+              sx={{ 
+                fontWeight: 800,
+                textDecoration: 'none',
+                color: 'primary.main',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
+                mr: 4,
+              }}
+            >
+              <Box
+                sx={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 2,
+                  background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 1,
+                  justifyContent: 'center',
+                  boxShadow: '0 4px 12px rgba(30, 64, 175, 0.3)',
                 }}
               >
-                <Box
-                  component="span"
-                  sx={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 1.5,
-                    background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '1.25rem',
-                  }}
-                >
-                  💰
-                </Box>
-                FinanceAI Pro
-              </Typography>
+                💰
+              </Box>
+              <Box sx={{ display: { xs: 'none', sm: 'block' } }}>FinanceAI Pro</Box>
+            </Typography>
 
-              {user && (
-                <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'flex' } }}>
-                  <Tabs 
-                    value={
-                      ["/", "/financial-report", "/portfolio", "/tax-optimization", "/dynamic-agents-hub", "/stock-monitor", "/risk-monitor", "/profile"].includes(location.pathname) 
-                        ? location.pathname 
-                        : false
-                    }
-                    textColor="primary"
-                    TabIndicatorProps={{
-                      style: {
-                        backgroundColor: '#1e40af',
-                        height: 3,
-                        borderRadius: '3px 3px 0 0',
-                      }
-                    }}
-                    sx={{ 
-                      '& .MuiTab-root': { 
-                        color: darkMode ? '#94a3b8' : '#64748b',
-                        fontWeight: 500,
-                        fontSize: '0.875rem',
-                        minHeight: 48,
-                        textTransform: 'none',
-                        px: 2,
-                        '&:hover': {
-                          color: darkMode ? '#f1f5f9' : '#1e293b',
-                          backgroundColor: darkMode ? 'rgba(255,255,255,0.05)' : 'rgba(30, 64, 175, 0.04)',
-                        },
-                      },
-                      '& .Mui-selected': { 
-                        color: '#1e40af',
-                        fontWeight: 600,
-                      }
+            {user && !isMobile && (
+              <Box sx={{ flexGrow: 1, display: 'flex', gap: 1 }}>
+                {menuItems.map((item) => (
+                  <Button
+                    key={item.path}
+                    component={Link}
+                    to={item.path}
+                    sx={{
+                      color: location.pathname === item.path ? 'primary.main' : 'text.secondary',
+                      bgcolor: location.pathname === item.path ? 'rgba(30, 64, 175, 0.08)' : 'transparent',
+                      fontWeight: location.pathname === item.path ? 700 : 500,
+                      '&:hover': { bgcolor: 'rgba(30, 64, 175, 0.05)' },
                     }}
                   >
-                    <Tab label="Dashboard" value="/" component={Link} to="/" />
-                    <Tab label="📊 Report" value="/financial-report" component={Link} to="/financial-report" />
-                    <Tab label="Portfolio" value="/portfolio" component={Link} to="/portfolio" />
-                    <Tab label="Tax" value="/tax-optimization" component={Link} to="/tax-optimization" />
-                    <Tab label="🤖 AI Agents" value="/dynamic-agents-hub" component={Link} to="/dynamic-agents-hub" />
-                    <Tab label="� Stocks" value="/stock-monitor" component={Link} to="/stock-monitor" />
-                    <Tab label="⚠️ Risk" value="/risk-monitor" component={Link} to="/risk-monitor" />
-                    <Tab label="�👤 Profile" value="/profile" component={Link} to="/profile" />
-                  </Tabs>
-                </Box>
-              )}
+                    {item.label}
+                  </Button>
+                ))}
+              </Box>
+            )}
 
-              {!user && <Box sx={{ flexGrow: 1 }} />}
+            <Box sx={{ flexGrow: 1 }} />
 
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Tooltip title="Switch Theme">
+                <IconButton onClick={toggleDarkMode}>
+                  {darkMode ? <Brightness7 /> : <Brightness4 />}
+                </IconButton>
+              </Tooltip>
+              
               {user && (
                 <>
-                  {/* Language Selector */}
-                  <IconButton
-                    color="inherit"
-                    onClick={(e) => setLangAnchorEl(e.currentTarget)}
-                    sx={{ mr: 1 }}
+                  <Tooltip title="Language">
+                    <IconButton onClick={(e) => setLangAnchorEl(e.currentTarget)}>
+                      <Language />
+                    </IconButton>
+                  </Tooltip>
+                  
+                  <Box 
+                    onClick={(e) => setAnchorEl(e.currentTarget)}
+                    sx={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: 1, 
+                      cursor: 'pointer',
+                      ml: 1,
+                      p: 0.5,
+                      pr: 1.5,
+                      borderRadius: 10,
+                      transition: 'all 0.2s',
+                      '&:hover': { bgcolor: 'rgba(0,0,0,0.05)' }
+                    }}
                   >
-                    <Language />
-                  </IconButton>
-                  <Menu
-                    anchorEl={langAnchorEl}
-                    open={Boolean(langAnchorEl)}
-                    onClose={() => setLangAnchorEl(null)}
-                  >
-                    {Object.entries(languageNames).map(([code, name]) => (
-                      <MenuItem
-                        key={code}
-                        onClick={() => handleLanguageChange(code as any)}
-                        selected={language === code}
-                      >
-                        {name}
-                      </MenuItem>
-                    ))}
-                  </Menu>
-
-                  {/* Theme Toggle */}
-                  <IconButton color="inherit" onClick={toggleDarkMode} sx={{ mr: 1 }}>
-                    {darkMode ? <Brightness7 /> : <Brightness4 />}
-                  </IconButton>
-
-                  {/* User Menu */}
-                  <IconButton color="inherit" onClick={(e) => setAnchorEl(e.currentTarget)}>
-                    <AccountCircle />
-                  </IconButton>
-                  <Menu
-                    anchorEl={anchorEl}
-                    open={Boolean(anchorEl)}
-                    onClose={() => setAnchorEl(null)}
-                  >
-                    <MenuItem disabled>
-                      <Typography variant="body2">{user.email}</Typography>
-                    </MenuItem>
-                    <MenuItem onClick={() => { setAnchorEl(null); navigate('/profile'); }}>
-                      <AccountCircle fontSize="small" sx={{ mr: 1 }} />
-                      Profile
-                    </MenuItem>
-                    <MenuItem onClick={handleLogout}>
-                      <Logout fontSize="small" sx={{ mr: 1 }} />
-                      Logout
-                    </MenuItem>
-                  </Menu>
+                    <Avatar 
+                      sx={{ 
+                        width: 32, 
+                        height: 32, 
+                        bgcolor: 'primary.main',
+                        fontSize: '0.875rem',
+                        fontWeight: 700
+                      }}
+                    >
+                      {user.displayName?.[0] || 'U'}
+                    </Avatar>
+                    <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+                      <Typography variant="body2" fontWeight={700}>
+                        {user.displayName}
+                      </Typography>
+                    </Box>
+                    <KeyboardArrowDown fontSize="small" sx={{ color: 'text.secondary' }} />
+                  </Box>
                 </>
               )}
 
-              {!user && (
-                <Button color="inherit" href="/login">
-                  Login
+              {!user && location.pathname !== '/login' && (
+                <Button variant="contained" component={Link} to="/login">
+                  Sign In
                 </Button>
               )}
-            </Toolbar>
-          </AppBar>
+            </Box>
 
-          {/* Main Content */}
-          <Box sx={{ flexGrow: 1 }}>
-            <Routes>
-              <Route
-                path="/login"
-                element={!user ? <Login /> : <Navigate to="/" replace />}
-              />
-              <Route
-                path="/"
-                element={
-                  user ? (
-                    <Dashboard />
-                  ) : (
-                    <Navigate to="/login" replace />
-                  )
-                }
-              />
-              <Route 
-                path="/financial-report" 
-                element={user ? <FinancialReport /> : <Navigate to="/" replace />} 
-              />
-              <Route 
-                path="/portfolio" 
-                element={user ? <InvestmentPortfolio /> : <Navigate to="/" replace />} 
-              />
-              <Route 
-                path="/goals" 
-                element={user ? <FinancialGoals /> : <Navigate to="/" replace />} 
-              />
-              <Route 
-                path="/scenario-simulator" 
-                element={user ? <ScenarioSimulator /> : <Navigate to="/" replace />} 
-              />
-              <Route 
-                path="/insights" 
-                element={user ? <BehavioralInsights /> : <Navigate to="/" replace />} 
-              />
-              <Route 
-                path="/agents" 
-                element={user ? <AutonomousAgents /> : <Navigate to="/" replace />} 
-              />
-              <Route 
-                path="/financial-inclusion" 
-                element={user ? <FinancialInclusion /> : <Navigate to="/" replace />} 
-              />
-              <Route 
-                path="/explainable-ai" 
-                element={user ? <ExplainableAI /> : <Navigate to="/" replace />} 
-              />
-              <Route 
-                path="/unified-data" 
-                element={user ? <UnifiedDataView /> : <Navigate to="/" replace />} 
-              />
-              <Route 
-                path="/tax-optimization" 
-                element={user ? <TaxOptimization /> : <Navigate to="/" replace />} 
-              />
-              <Route 
-                path="/ai-financial-advisor" 
-                element={user ? <AIFinancialAdvisor /> : <Navigate to="/" replace />} 
-              />
-              <Route 
-                path="/credit-score-monitor" 
-                element={user ? <CreditScoreMonitor /> : <Navigate to="/" replace />} 
-              />
-              <Route 
-                path="/risk-agent" 
-                element={user ? <RiskAutoSellAgentSetup /> : <Navigate to="/" replace />} 
-              />
-              <Route 
-                path="/dynamic-agents-hub" 
-                element={user ? <DynamicAgentsHub /> : <Navigate to="/" replace />} 
-              />
-              <Route 
-                path="/stock-monitor" 
-                element={user ? <StockMonitoringDashboard /> : <Navigate to="/" replace />} 
-              />
-              <Route 
-                path="/risk-monitor" 
-                element={user ? <RiskMonitoringDashboard /> : <Navigate to="/" replace />} 
-              />
-              <Route 
-                path="/profile" 
-                element={user ? <EnhancedProfile /> : <Navigate to="/" replace />} 
-              />
+            <Menu
+              anchorEl={langAnchorEl}
+              open={Boolean(langAnchorEl)}
+              onClose={() => setLangAnchorEl(null)}
+              PaperProps={{ sx: { borderRadius: 2, minWidth: 150, mt: 1.5 } }}
+            >
+              {[
+                { code: 'en', name: 'English' },
+                { code: 'hi', name: 'हिंदी' },
+                { code: 'te', name: 'తెలుగు' },
+                { code: 'ta', name: 'தமிழ்' },
+                { code: 'ml', name: 'മലയാളം' }
+              ].map((lang) => (
+                <MenuItem 
+                  key={lang.code} 
+                  onClick={() => handleLanguageChange(lang.code as any)}
+                  selected={language === lang.code}
+                >
+                  {lang.name}
+                </MenuItem>
+              ))}
+            </Menu>
+
+
+            <Menu
+              anchorEl={anchorEl}
+              open={Boolean(anchorEl)}
+              onClose={() => setAnchorEl(null)}
+              PaperProps={{ sx: { borderRadius: 2, minWidth: 200, mt: 1.5, boxShadow: '0 10px 25px rgba(0,0,0,0.1)' } }}
+            >
+              <Box sx={{ px: 2, py: 1.5 }}>
+                <Typography variant="subtitle2" fontWeight={700}>{user?.displayName}</Typography>
+                <Typography variant="caption" color="text.secondary">{user?.email}</Typography>
+              </Box>
+              <MenuItem onClick={() => { setAnchorEl(null); navigate('/profile'); }}>Profile Settings</MenuItem>
+              <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>
+                <Logout fontSize="small" sx={{ mr: 1 }} /> Logout
+              </MenuItem>
+            </Menu>
+          </Toolbar>
+        </AppBar>
+
+        <Box component="main" sx={{ flexGrow: 1, py: { xs: 2, md: 4 } }}>
+          <AnimatePresence mode="wait">
+            <Routes location={location} key={location.pathname}>
+              <Route path="/login" element={!user ? <PageWrapper><Login /></PageWrapper> : <Navigate to="/" replace />} />
+              <Route path="/" element={user ? <PageWrapper><Dashboard /></PageWrapper> : <Navigate to="/login" replace />} />
+              <Route path="/financial-report" element={user ? <PageWrapper><FinancialReport /></PageWrapper> : <Navigate to="/" replace />} />
+              <Route path="/portfolio" element={user ? <PageWrapper><InvestmentPortfolio /></PageWrapper> : <Navigate to="/" replace />} />
+              <Route path="/goals" element={user ? <PageWrapper><FinancialGoals /></PageWrapper> : <Navigate to="/" replace />} />
+              <Route path="/scenario-simulator" element={user ? <PageWrapper><ScenarioSimulator /></PageWrapper> : <Navigate to="/" replace />} />
+              <Route path="/insights" element={user ? <PageWrapper><BehavioralInsights /></PageWrapper> : <Navigate to="/" replace />} />
+              <Route path="/agents" element={user ? <PageWrapper><AutonomousAgents /></PageWrapper> : <Navigate to="/" replace />} />
+              <Route path="/financial-inclusion" element={user ? <PageWrapper><FinancialInclusion /></PageWrapper> : <Navigate to="/" replace />} />
+              <Route path="/explainable-ai" element={user ? <PageWrapper><ExplainableAI /></PageWrapper> : <Navigate to="/" replace />} />
+              <Route path="/unified-data" element={user ? <PageWrapper><UnifiedDataView /></PageWrapper> : <Navigate to="/" replace />} />
+              <Route path="/tax-optimization" element={user ? <PageWrapper><TaxOptimization /></PageWrapper> : <Navigate to="/" replace />} />
+              <Route path="/ai-financial-advisor" element={user ? <PageWrapper><AIFinancialAdvisor /></PageWrapper> : <Navigate to="/" replace />} />
+              <Route path="/credit-score-monitor" element={user ? <PageWrapper><CreditScoreMonitor /></PageWrapper> : <Navigate to="/" replace />} />
+              <Route path="/risk-agent" element={user ? <PageWrapper><RiskAutoSellAgentSetup /></PageWrapper> : <Navigate to="/" replace />} />
+              <Route path="/dynamic-agents-hub" element={user ? <PageWrapper><DynamicAgentsHub /></PageWrapper> : <Navigate to="/" replace />} />
+              <Route path="/stock-monitor" element={user ? <PageWrapper><StockMonitoringDashboard /></PageWrapper> : <Navigate to="/" replace />} />
+              <Route path="/risk-monitor" element={user ? <PageWrapper><RiskMonitoringDashboard /></PageWrapper> : <Navigate to="/" replace />} />
+              <Route path="/profile" element={user ? <PageWrapper><EnhancedProfile /></PageWrapper> : <Navigate to="/" replace />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
-          </Box>
-
-          {/* ChatBot Drawer */}
-          {user && <ChatBot open={chatOpen} onClose={() => setChatOpen(false)} />}
-
-          {/* Footer */}
-          <Box
-            component="footer"
-            sx={{
-              py: 3,
-              px: 2,
-              mt: 'auto',
-              backgroundColor: (theme) =>
-                theme.palette.mode === 'light' ? theme.palette.grey[200] : theme.palette.grey[800],
-            }}
-          >
-            <Container maxWidth="lg">
-              <Typography variant="body2" color="text.secondary" align="center">
-                © 2025 FinanceAI Pro - Built for Vibeathon Hackathon
-              </Typography>
-              <Typography variant="caption" color="text.secondary" align="center" display="block">
-                Compliant with RBI guidelines • Secure • Privacy-first
-              </Typography>
-            </Container>
-          </Box>
+          </AnimatePresence>
         </Box>
+
+        {user && <ChatBot open={chatOpen} onClose={() => setChatOpen(false)} />}
+
+        <Box component="footer" sx={{ py: 4, px: 2, bgcolor: darkMode ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)', borderTop: '1px solid', borderColor: 'divider' }}>
+          <Container maxWidth="lg">
+            <Typography variant="body2" color="text.secondary" align="center" fontWeight={600}>
+              © 2025 FinanceAI Pro • Enterprise Intelligence Platform
+            </Typography>
+            <Typography variant="caption" color="text.secondary" align="center" display="block" sx={{ mt: 1, opacity: 0.8 }}>
+              Bank-grade security • RBI Regulated • SOC 2 Certified
+            </Typography>
+          </Container>
+        </Box>
+      </Box>
     </ThemeProvider>
   );
 }
 
-// Main App component with Router
 function App() {
   return (
     <Router>
@@ -650,3 +425,4 @@ function App() {
 }
 
 export default App;
+

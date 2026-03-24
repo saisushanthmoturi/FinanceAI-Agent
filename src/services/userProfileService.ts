@@ -5,6 +5,8 @@
 
 import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import type { BankAccountFormData } from '../types/bank';
+
 
 export interface UserFinancialProfile {
   userId: string;
@@ -34,10 +36,12 @@ export interface UserFinancialProfile {
     active: Investment[];
     planned: Investment[];
   };
+  bankAccounts: BankAccountFormData[];
   taxRegime: 'old' | 'new';
   createdAt: Date;
   updatedAt: Date;
 }
+
 
 export interface CustomDeduction {
   id: string;
@@ -95,6 +99,114 @@ export class UserProfileService {
    */
   async getProfile(userId: string): Promise<UserFinancialProfile | null> {
     try {
+      if (userId.startsWith('demo-')) {
+        console.log('Using rich default profile for demo user');
+        return {
+          userId,
+          personalInfo: {
+            name: 'Demo User',
+            age: 32,
+            occupation: 'Software Engineer',
+            pan: 'ABCDE1234F',
+          },
+          income: {
+            monthlySalary: 150000,
+            annualSalary: 1800000,
+            otherIncome: 25000,
+            rentalIncome: 15000,
+            businessIncome: 0,
+            lastUpdated: new Date(),
+          },
+          deductions: {
+            section80C: [
+              {
+                id: 'd-1',
+                name: 'EPF',
+                category: '80C',
+                amount: 72000,
+                type: 'EPF',
+                description: 'Employee Provident Fund',
+                startDate: new Date(Date.now() - 365 * 86400000),
+                isRecurring: true,
+                verified: true,
+              },
+              {
+                id: 'd-2',
+                name: 'HDFC ELSS Fund',
+                category: '80C',
+                amount: 50000,
+                type: 'ELSS',
+                description: 'Tax saving mutual fund',
+                startDate: new Date(Date.now() - 180 * 86400000),
+                isRecurring: false,
+                verified: true,
+              }
+            ],
+            section80D: [
+              {
+                id: 'd-3',
+                name: 'Star Health Insurance',
+                category: '80D',
+                amount: 15000,
+                type: 'Health Insurance',
+                description: 'Family health cover',
+                startDate: new Date(Date.now() - 270 * 86400000),
+                isRecurring: true,
+                verified: true,
+              }
+            ],
+            section80CCD1B: [
+              {
+                id: 'd-4',
+                name: 'NPS Tier 1',
+                category: '80CCD1B',
+                amount: 50000,
+                type: 'NPS',
+                description: 'National Pension System',
+                startDate: new Date(Date.now() - 300 * 86400000),
+                isRecurring: true,
+                verified: true,
+              }
+            ],
+            homeLoan: [
+              {
+                id: 'l-1',
+                loanType: 'Home Loan',
+                bankName: 'SBI',
+                principalAmount: 5000000,
+                outstandingAmount: 4200000,
+                interestRate: 8.5,
+                emi: 45000,
+                tenure: 240,
+                startDate: new Date(Date.now() - 730 * 86400000),
+                endDate: new Date(Date.now() + 18 * 365 * 86400000),
+                taxBenefit: {
+                  section: '24(b)',
+                  maxDeduction: 200000,
+                  currentYearBenefit: 185000,
+                },
+                calculatedData: {
+                  totalInterestPaid: 1200000,
+                  principalPaid: 800000,
+                  remainingTenure: 216,
+                  totalTaxSaved: 95000,
+                }
+              }
+            ],
+            otherLoans: [],
+            customDeductions: [],
+          },
+          investments: {
+            active: [],
+            planned: [],
+          },
+          bankAccounts: [],
+          taxRegime: 'new',
+          createdAt: new Date(Date.now() - 730 * 86400000),
+          updatedAt: new Date(),
+        };
+      }
+
       const docRef = doc(db, 'user_profiles', userId);
       const docSnap = await getDoc(docRef);
 
@@ -135,12 +247,48 @@ export class UserProfileService {
             })) || [],
             customDeductions: data.deductions.customDeductions || [],
           },
+          bankAccounts: data.bankAccounts || [],
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date(),
         } as UserFinancialProfile;
+
       }
 
-      return null;
+      const defaultProfile: UserFinancialProfile = {
+        userId,
+        personalInfo: {
+          name: 'Anonymous User',
+          age: 30,
+          occupation: 'Professional',
+        },
+        income: {
+          monthlySalary: 100000,
+          annualSalary: 1200000,
+          otherIncome: 0,
+          rentalIncome: 0,
+          businessIncome: 0,
+          lastUpdated: new Date(),
+        },
+        deductions: {
+          section80C: [],
+          section80D: [],
+          section80CCD1B: [],
+          homeLoan: [],
+          otherLoans: [],
+          customDeductions: [],
+        },
+        investments: {
+          active: [],
+          planned: [],
+        },
+        bankAccounts: [],
+        taxRegime: 'new',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      return defaultProfile;
+
+
     } catch (error) {
       console.error('Error fetching profile:', error);
       
@@ -368,10 +516,12 @@ export class UserProfileService {
         active: [],
         planned: [],
       },
+      bankAccounts: [],
       taxRegime: data.taxRegime || 'new',
       createdAt: new Date(),
       updatedAt: new Date(),
     };
+
 
     try {
       const docRef = doc(db, 'user_profiles', userId);
@@ -435,6 +585,50 @@ export class UserProfileService {
       console.error('Error deleting loan:', error);
     }
   }
+  /**
+   * Add bank account
+   */
+  async addBankAccount(userId: string, accountData: BankAccountFormData) {
+    const userRef = doc(db, 'user_profiles', userId);
+    const userDoc = await getDoc(userRef);
+    
+    if (userDoc.exists()) {
+      const data = userDoc.data() as UserFinancialProfile;
+      const bankAccounts = data.bankAccounts || [];
+      bankAccounts.push({
+        ...accountData,
+        id: Math.random().toString(36).substr(2, 9),
+        balance: 0,
+        currency: 'INR',
+        lastSync: new Date().toISOString()
+      } as any);
+
+      await updateDoc(userRef, { bankAccounts });
+      console.log('✅ Bank account added:', accountData.bankName);
+    } else {
+      throw new Error('Profile not found');
+    }
+  }
+
+  async addTransaction(userId: string, transactionData: any) {
+    const userRef = doc(db, 'user_profiles', userId);
+    const userDoc = await getDoc(userRef);
+    
+    if (userDoc.exists()) {
+      const data = userDoc.data() as UserFinancialProfile;
+      const transactions = (data as any).transactions || [];
+      transactions.push({
+        ...transactionData,
+        id: Math.random().toString(36).substr(2, 9),
+        createdAt: new Date().toISOString()
+      });
+      await updateDoc(userRef, { transactions });
+      console.log('✅ Transaction added:', transactionData.description);
+    } else {
+      throw new Error('Profile not found');
+    }
+  }
 }
+
 
 export const userProfileService = new UserProfileService();
