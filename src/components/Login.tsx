@@ -26,7 +26,6 @@ import {
   loginUser,
   loginWithGoogle,
   type RegistrationData,
-  type LoginCredentials,
 } from '../services/authService';
 import { useTranslation } from '../hooks/useTranslation';
 

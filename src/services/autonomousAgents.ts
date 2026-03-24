@@ -76,7 +76,6 @@ export class AutonomousAgentService {
    */
   async executeSavingsTransfer(
     userId: string,
-    accountId: string,
     income: number,
     expenses: number,
     targetSavingsRate: number = 0.20

@@ -48,7 +48,7 @@ interface FinancialGoal {
 }
 
 const FinancialGoals: React.FC = () => {
-  const [goals, setGoals] = useState<FinancialGoal[]>([
+  const [goals] = useState<FinancialGoal[]>([
     {
       id: '1',
       title: 'Emergency Fund',

@@ -24,7 +24,6 @@ import {
 import Grid from '@mui/material/Grid2';
 import {
   Security,
-  Lock,
   Visibility,
   Delete,
   Download,
