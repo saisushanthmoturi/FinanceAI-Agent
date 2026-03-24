@@ -5,12 +5,12 @@
  * with user consent based on agent configuration
  */
 
-import { getPortfolioPositions, updatePortfolioPosition } from './watchlistService';
-import { getUserAgents, createAgentExecution, getAgent } from './agentMarketplace';
+import { getPortfolioPositions } from './watchlistService';
+import { createAgentExecution } from './agentMarketplace';
 import { sendRiskAlertEmail, sendAutoSellEmail, sendAgentApprovalEmail } from './emailService';
 import { logActivity, ActivityType } from './activityLogger';
 import type { PortfolioPosition } from './stockMonitoringAgent';
-import type { Agent, AgentExecution } from './agentMarketplace';
+import type { Agent } from './agentMarketplace';
 
 /**
  * Execute Risk & Sell Agent logic
@@ -75,7 +75,7 @@ async function processHighRiskPosition(
     waitTimeMinutes: number;
   }
 ): Promise<void> {
-  const { symbol, riskLevel, riskScore, profitLossPercent, currentPrice, quantity, profitLoss } = position;
+  const { symbol, riskLevel, riskScore, profitLossPercent, currentPrice, quantity } = position;
 
   console.log(`Processing high-risk position: ${symbol} (Risk: ${riskLevel}, Score: ${riskScore})`);
 

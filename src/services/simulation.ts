@@ -1,4 +1,4 @@
-import type { SimulationScenario, SimulationResult, MonthlyProjection } from '../types';
+import type { SimulationResult, MonthlyProjection } from '../types';
 
 /**
  * Scenario Simulation Engine
@@ -6,7 +6,6 @@ import type { SimulationScenario, SimulationResult, MonthlyProjection } from '..
  */
 export class SimulationEngine {
   private readonly SIMULATION_RUNS = 1000;
-  private readonly MONTHS_TO_SIMULATE = 360; // 30 years
 
   /**
    * Run retirement simulation

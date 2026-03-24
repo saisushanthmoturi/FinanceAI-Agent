@@ -48,9 +48,9 @@ async function testCryptoSupport() {
     
     // Test 5: Verify watchlist
     console.log('📝 Test 5: Verifying watchlist...');
-    const watchlist = stockMonitoringAgent.getWatchlist(userId);
+    const watchlist = await stockMonitoringAgent.getWatchlist(userId);
     console.log('✅ Watchlist has', watchlist.length, 'items');
-    console.log('   Assets:', watchlist.map(item => `${item.symbol} (${item.assetType})`).join(', '));
+    console.log('   Assets:', watchlist.map((item: any) => `${item.symbol} (${item.assetType})`).join(', '));
     console.log('');
     
     // Test 6: Subscribe to alerts
@@ -83,8 +83,8 @@ async function testCryptoSupport() {
     
     // Test 8: Check updated prices
     console.log('📝 Test 8: Checking updated prices...');
-    const updatedWatchlist = stockMonitoringAgent.getWatchlist(userId);
-    updatedWatchlist.forEach(item => {
+    const updatedWatchlist = await stockMonitoringAgent.getWatchlist(userId);
+    updatedWatchlist.forEach((item: any) => {
       console.log(`   ${item.symbol} (${item.assetType}): $${item.currentPrice?.toLocaleString()}`);
     });
     console.log('');
@@ -112,7 +112,7 @@ async function testCryptoSupport() {
     // Cleanup
     console.log('🧹 Cleaning up...');
     unsubscribe();
-    watchlist.forEach(item => {
+    watchlist.forEach((item: any) => {
       stockMonitoringAgent.removeFromWatchlist(userId, item.id);
     });
     stockMonitoringAgent.stopMonitoring();

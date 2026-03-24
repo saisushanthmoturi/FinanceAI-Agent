@@ -50,13 +50,13 @@ async function testAddStock() {
 console.log('📝 TEST 2: Retrieving watchlist (Backend)');
 console.log('─────────────────────────────────────────────');
 
-function testGetWatchlist() {
+async function testGetWatchlist() {
   console.log('Fetching watchlist for user...');
   
-  const watchlist = stockMonitoringAgent.getWatchlist(TEST_USER);
+  const watchlist = await (stockMonitoringAgent.getWatchlist(TEST_USER) as any);
   
   console.log(`✅ SUCCESS - Found ${watchlist.length} stock(s):`);
-  watchlist.forEach(item => {
+  watchlist.forEach((item: any) => {
     console.log(`   • ${item.symbol} (${item.threshold}%) - $${item.currentPrice}`);
   });
   console.log('');
@@ -238,7 +238,7 @@ async function runAllTests() {
     
     // Backend tests
     await testAddStock();
-    testGetWatchlist();
+    await testGetWatchlist();
     testMonitoring();
     
     // Alert subscription (will wait for actual price changes)

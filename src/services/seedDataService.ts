@@ -7,7 +7,7 @@ import {
   serverTimestamp, 
   Timestamp 
 } from 'firebase/firestore';
-import type { UserProfileData } from './profileService';
+
 
 /**
  * Seed Data Service
