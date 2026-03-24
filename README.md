@@ -1,129 +1,106 @@
-FinanceAI-Agent - Corporate Finance Intelligence Platform
-A comprehensive AI-powered financial analytics and automation platform designed for modern finance professionals and enterprises.
+# 🚀 FinanceAI Pro: The Intelligent Financial Operating System
 
-🎯 Overview
-FinanceAI-Agent is an end-to-end financial intelligence platform that combines real-time data aggregation, AI-driven insights, and intelligent automation to deliver comprehensive financial management capabilities. The platform integrates multiple financial services, AI models, and data sources to provide actionable insights and automated financial decision-making. Login.tsx:173-182
+[![Live Preview](https://img.shields.io/badge/Live%20Preview-Vercel-blue?style=for-the-badge&logo=vercel)](https://finance-ai-agent-nine.vercel.app/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+[![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen?style=for-the-badge)](https://finance-ai-agent-nine.vercel.app/)
 
-✨ Key Features
-📊 Real-Time Financial Monitoring
-Stock Monitoring: Autonomous stock monitoring agent with real-time alerts every 10 seconds
-Account Aggregation: Integration with Setu API for real-time bank account data synchronization .env.example:19-21
-Multi-Asset Support: Comprehensive tracking across stocks, bank accounts, and investment portfolios
-🤖 AI-Powered Intelligence
-Financial Health Scoring: AI-driven health assessment using Gemini API Dashboard.tsx:86-94
-Tax Optimization: Intelligent tax recommendations and regime comparison TaxOptimization.tsx:1-10
-Dynamic AI Agents: Customizable autonomous agents for various financial tasks DynamicAgentsHub.tsx:1-5
-🏢 Enterprise-Grade Features
-Multi-User Support: Separate watchlists and financial data per user
-Advanced Analytics: BigQuery integration for historical analysis and trend detection .env.example:28-29
-Voice Assistant: Conversational AI with Dialogflow CX integration .env.example:23-26
-🏗️ Architecture
-State Management
-The application uses Zustand for global state management, providing a lightweight and efficient solution for managing user authentication, dashboard data, and UI preferences across the application. Dashboard.tsx:40-42
+**FinanceAI Pro** is a cutting-edge, AI-powered financial management platform designed for modern professionals. It combines real-time data aggregation, autonomous AI agents, and a resilient "local-first" architecture to provide a seamless, multilingual financial experience.
 
-AI Services Integratio
+---
 
-The platform integrates three complementary Google Cloud AI services:
+## ✨ Key Features
 
-Gemini API: For natural language processing and financial analysis .env.example:13-14
-Vertex AI: For custom machine learning models and predictions .env.example:10-11
-BigQuery: For financial analytics and data warehousing .env.example:28-29
-🚀 Getting Started
-Prerequisites
-Node.js 18+
-Firebase project
-Google Cloud Platform account
-API keys for integrated services
-Installation
-Clone the repository
-git clone https://github.com/saisushanthmoturi/FinanceAI-Agent.git  
-cd FinanceAI-Agent
-Install dependencies
-npm install
-Environment Configuration
-Copy the environment template and configure your API keys:
-cp .env.example .env
-Required environment variables: .env.example:1-34
+### 🌍 Global Localization (New!)
+*   **Fully Multilingual**: Support for **English, Hindi (हिन्दी), Telugu (తెలుగు), Tamil (தமிழ்), and Malayalam (മലയാളം)**.
+*   **Dynamic Translation**: Instant UI switching across the entire platform, including charts, labels, and AI insights.
 
-Configuration
-Firebase Setup
-Configure Firebase Authentication and Firestore:
+### 🤖 Autonomous AI Agents
+*   **Risk & Sell Agent**: Monitors your portfolio 24/7 for high-risk positions and suggests/executes sells based on your risk appetite.
+*   **Stock Monitoring Agent**: Real-time polling (10s intervals) for price shifts with instant toast notifications.
+*   **Smart Savings Agent**: Analyzes income/expense patterns to suggest automated surplus transfers.
 
-VITE_FIREBASE_API_KEY=your_firebase_api_key  
-VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com  
-VITE_FIREBASE_PROJECT_ID=your_project_id
-Google Cloud Services
-Set up Google Cloud Platform services:
+### 📊 Comprehensive Dashboard
+*   **Real-Time Analytics**: Visualise your net worth, asset allocation, and market performance in beautiful, glassmorphic charts.
+*   **Investment Portfolio**: Track stocks, mutual funds, and crypto in one place with live P/L feedback.
+*   **Tax Optimization**: Compare Old vs. New tax regimes and get personalized recommendations.
 
-VITE_GOOGLE_CLOUD_PROJECT_ID=your_gcp_project_id  
-VITE_VERTEX_AI_LOCATION=us-central1  
-VITE_GEMINI_API_KEY=your_gemini_api_key  
-VITE_BIGQUERY_DATASET_ID=financial_analytics
-Financial Data APIs
-Configure financial data providers:
+### 🛡️ Resilient Architecture
+*   **Local-First Persistence**: Data persists in `localStorage` even if the cloud (Firestore) is offline, ensuring your data is always available.
+*   **Cloud Sync**: Automatic background synchronization with Google Firebase for multi-device access.
+*   **E2E Encryption**: Enterprise-grade security for your sensitive financial data.
 
-VITE_FINNHUB_API_KEY=your_finnhub_api_key_here  
-VITE_AA_API_KEY=your_aa_api_key  
-VITE_AA_BASE_URL=https://api.setu.co
-📱 Core Components
-Dashboard
-The main dashboard provides comprehensive financial overview with:
+---
 
-Real-time account aggregation
-Financial health scoring
-AI-powered recommendations
-Quick action buttons for various features Dashboard.tsx:295-415
-Tax Optimization
-Advanced tax planning tools featuring:
+## 🛠️ Tech Stack
 
-Old vs New tax regime comparison
-Personalized tax-saving recommendations
-Investment suggestions
-Loan benefits calculator TaxOptimization.tsx:4-9
-Dynamic Agents Hub
-Central management system for AI agents:
+*   **Frontend**: React 18, Vite, TypeScript
+*   **Styling**: Material UI (MUI), Framer Motion (Animations)
+*   **State Management**: Zustand (Lightweight & Reactive)
+*   **Backend**: Firebase (Auth, Firestore, Hosting)
+*   **AI Engine**: Google Gemini API, Vertex AI
+*   **Financial Data**: Finnhub API (Stocks), Binance API (Crypto)
 
-Pre-built agent templates
-Custom agent creation (coming soon)
-Agent marketplace
-Real-time agent monitoring DynamicAgentsHub.tsx:165-184
-🔧 Development
-Running the Application
-# Development mode  
-npm run dev  
-  
-# Production build  
-npm run build  
-  
-# Preview production build  
-npm run preview
-Feature Flags
-Enable/disable features using environment variables: .env.example:31-34
+---
 
-VITE_ENABLE_VOICE=true  
-VITE_ENABLE_AUTONOMOUS_ACTIONS=true  
-VITE_ENABLE_SCENARIO_SIMULATION=true
-📊 Data Flow
-The application follows a structured data flow pattern:
+## 🚀 Getting Started
 
-Data Sources: External APIs (Finnhub, Account Aggregator, Gemini)
-Service Layer: Business logic and data transformation
-State Management: Zustand store for global state
-UI Components: React components consuming state
+### Prerequisites
+*   Node.js 18+
+*   npm or yarn
 
-🔒 Security & Compliance
-Enterprise-grade security with Firebase Authentication
-Data encryption in transit and at rest
-Compliance with financial data regulations
-Role-based access control for multi-user environments
-🤝 Contributing
-Fork the repository
-Create a feature branch (git checkout -b feature/AmazingFeature)
-Commit your changes (git commit -m 'Add some AmazingFeature')
-Push to the branch (git push origin feature/AmazingFeature)
-Open a Pull Request
-📄 License
-This project is licensed under the MIT License - see the LICENSE file for details.
+### Installation
+
+1.  **Clone the Repository**
+    ```bash
+    git clone https://github.com/saisushanthmoturi/FinanceAI-Agent.git
+    cd FinanceAI-Agent
+    ```
+
+2.  **Install Dependencies**
+    ```bash
+    npm install
+    ```
+
+3.  **Configure Environment Variables**
+    Create a `.env` file in the root directory and add your keys:
+    ```env
+    VITE_FIREBASE_API_KEY=your_key
+    VITE_GEMINI_API_KEY=your_key
+    VITE_FINNHUB_API_KEY=your_key
+    ```
+
+4.  **Launch Local Development**
+    ```bash
+    npm run dev
+    ```
+
+---
+
+## 🌐 Live Deployment
+
+The application is deployed on Vercel and can be accessed at:  
+👉 **[https://finance-ai-agent-nine.vercel.app/](https://finance-ai-agent-nine.vercel.app/)**
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! If you have ideas for new agents or better localization support, feel free to open a PR.
+
+1.  Fork the Project
+2.  Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3.  Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4.  Push to the Branch (`git push origin feature/AmazingFeature`)
+5.  Open a Pull Request
+
+---
+
+## 📄 License
+Distributed under the MIT License. See `LICENSE` for more information.
+
+---
+*Built with ❤️ by the FinanceAI Team.*
+- see the LICENSE file for details.
 
 
 
